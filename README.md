@@ -11,7 +11,6 @@ OPENAI_API_KEY=your-api-key
 DISCORD_TOKEN=your-discord-token
 BRAVE_KEY=your-brave-token
 GOOGLE_API_KEY=your-google-token
-GOOGLE_SEARCH_ID=your-google-id
 ```
 4. Run the bot using `node main.js`
 5. Enjoy!
