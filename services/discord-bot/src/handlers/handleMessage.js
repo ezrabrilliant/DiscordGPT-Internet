@@ -36,8 +36,6 @@ async function handleMessage(message) {
         // Layer 2: Security check (global)
         const securityCheck = security.checkDangerousMentions(message);
         if (securityCheck.blocked) {
-            // Use channel.send, NOT reply - to avoid quoting the @everyone message
-            await message.delete().catch(() => { }); // Try to delete the offending message
             return message.channel.send(`${message.author}, ${securityCheck.reason}`);
         }
 

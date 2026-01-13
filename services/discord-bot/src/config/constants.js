@@ -16,13 +16,14 @@ module.exports = {
 
     // Messages (for easy i18n later)
     MESSAGES: {
-        ERROR_GENERIC: 'Terjadi kesalahan saat memproses permintaan Anda. Silakan coba lagi nanti.',
-        ERROR_EVERYONE: '⛔ Tidak bisa menggunakan @everyone atau @here!',
-        ERROR_ROLE: '⛔ Tidak bisa menggunakan tag role!',
-        SEARCH_DISABLED: 'Fitur search sedang dinonaktifkan sementara.',
-        AI_DISABLED: 'Fitur AI chat sedang dalam pengembangan. Coba !khodam @username',
-        KHODAM_USAGE: 'Format salah, gunakan: `!Khodam @username` atau `!cekKhodam @username`',
+        ERROR_GENERIC: 'An error occurred while processing your request. Please try again later.',
+        ERROR_EVERYONE: '⛔ You cannot mention everyone!',
+        ERROR_ROLE: '⛔ You cannot mention roles!',
+        SEARCH_DISABLED: 'The search feature is temporarily disabled.',
+        AI_DISABLED: 'The AI chat feature is currently under development. Try !khodam @username',
+        KHODAM_USAGE: 'Invalid format. Use: `!Khodam @username` or `!cekKhodam @username`',
     },
+
 
     // Khodam data
     KHODAM: {
