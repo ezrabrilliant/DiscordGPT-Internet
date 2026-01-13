@@ -1,4 +1,5 @@
-const { Client, IntentsBitField, GatewayIntentBits } = require('discord.js');
+// File: botConfig.js
+const { Client, IntentsBitField, GatewayIntentBits, ActivityType } = require('discord.js');
 
 const bot = new Client({
     intents: [
@@ -11,4 +12,4 @@ const bot = new Client({
     ]
 });
 
-module.exports = bot;
+module.exports = { bot, ActivityType }; // Export both bot and ActivityType

@@ -1,0 +1,16 @@
+{
+  "dependencies": {
+    "@cemalgnlts/mailjs": "^3.0.1",
+    "axios": "^1.7.2",
+    "base-64": "^1.0.0",
+    "capsolver-npm": "^1.0.9",
+    "currency.js": "^2.0.4",
+    "discord.js": "^14.15.2",
+    "dotenv": "^16.4.5",
+    "googleapis": "^137.1.0",
+    "https-proxy-agent": "^7.0.5",
+    "libphonenumber-js": "^1.11.4",
+    "openai": "^3.3.0",
+    "request": "^2.88.2"
+  }
+}
