@@ -1,8 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
-// Tentukan jalur file log
-const logFilePath = path.join(__dirname, 'messages.log');
+// Tentukan jalur file log (shared data folder untuk akses Python nanti)
+const logFilePath = path.join(__dirname, '../../../../data/messages.log');
 
 // Fungsi untuk menulis log ke file
 function logMessage(message) {

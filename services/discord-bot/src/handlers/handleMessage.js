@@ -1,7 +1,8 @@
 const { Configuration, OpenAIApi } = require('openai');
-const handleSearchCommand = require('./handler/handleSearchCommand');
-const fetchAndReplyWithGoogleResults = require('./handler/fetchAndReplyWithGoogleResults');
-const cekKhodam = require('./handler/cekKhodam.js');
+// Legacy search commands (disabled - moved to legacy-archive)
+// const handleSearchCommand = require('../../../../legacy-archive/handleSearchCommand');
+// const fetchAndReplyWithGoogleResults = require('../../../../legacy-archive/fetchAndReplyWithGoogleResults');
+const cekKhodam = require('./cekKhodam');
 
 const configuration = new Configuration({
     apiKey: process.env.API_KEY,
@@ -17,17 +18,17 @@ async function handleMessage(message) {
         const query = args.join(' ');
 
         if (command === 'search') {
-            console.log('search command');
-            console.log('query:', query);
-            await handleSearchCommand(query, message);
+            // Legacy feature - disabled
+            console.log('search command (disabled)');
+            message.reply('Fitur search sedang dinonaktifkan sementara.');
         } else if (command === 'khodam' || command === 'cekkhodam') {
             console.log('khodam command');
-            
+
             // Check for mentions
             const mentions = message.mentions.members;
             if (mentions.size > 0) {
                 const member = mentions.first();
-                const userName = member.nickname || member.displayName ; // Use nickname if available, otherwise use username
+                const userName = member.nickname || member.displayName; // Use nickname if available, otherwise use username
                 return cekKhodam(userName, message);
             } else {
                 // If no mentions, check if there's a query
@@ -42,7 +43,9 @@ async function handleMessage(message) {
             if (!startsWithPrefgpt) return;
             if (message.author.bot) return;
 
-            await fetchAndReplyWithGoogleResults(message, openai);
+            // Legacy GPT with Google results (disabled)
+            // TODO: Re-enable when ai-engine Python backend is ready
+            message.reply('Fitur AI chat sedang dalam pengembangan. Coba !khodam @username');
         }
     } catch (error) {
         console.error('Error in handleMessage:', error);

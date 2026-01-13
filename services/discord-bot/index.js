@@ -1,12 +1,12 @@
-// File: main.js
+// File: index.js - Discord Bot Entry Point
 const axios = require('axios');
 require('dotenv').config();
-const { bot, ActivityType } = require('./botConfig');
-const handleMessage = require('./handleMessage');
+const { bot, ActivityType } = require('./config');
+const handleMessage = require('./src/handlers/handleMessage');
 
 bot.on('ready', () => {
     console.log(`Logged in as ${bot.user.tag}!`);
-    
+
     const activities = [
         { name: 'Cek Khodam !khodam @username', type: ActivityType.Watching },
         { name: 'Bintang Skibidi', type: ActivityType.Listening },
