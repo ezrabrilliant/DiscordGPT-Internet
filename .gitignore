@@ -81,3 +81,4 @@ services/ai-engine/data/chromadb/chroma.sqlite3
 data/chromadb/chroma.sqlite3
 services/ai-engine/data/chromadb/chroma.sqlite3
 services/ai-engine/data/chromadb/chroma.sqlite3
+*.zip
