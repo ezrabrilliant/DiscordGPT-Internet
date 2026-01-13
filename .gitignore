@@ -1,71 +1,23 @@
-# =====================================================
-# Node.js / Discord Bot - Gitignore
-# =====================================================
-
 # Dependencies
 node_modules/
-package-lock.json
 
-# Environment variables (SENSITIVE!)
+# Environment (SENSITIVE)
 .env
-.env.local
-.env.*.local
-*.env
+.env.*
 
-# Log files
+# Logs (generated at runtime)
+data/
 *.log
-logs/
-data/*.log
 
-# Build outputs
-dist/
-build/
-out/
+# Build/Archive
+*.rar
+*.zip
+*.tar.gz
 
-# IDE / Editor
+# IDE
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
+
+# OS
 .DS_Store
 Thumbs.db
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-
-# Test / Coverage
-coverage/
-.nyc_output/
-
-# Python (for future ai-engine)
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-venv/
-ENV/
-.venv/
-*.egg-info/
-.eggs/
-
-# Temporary files
-tmp/
-temp/
-*.tmp
-*.temp
-
-# Legacy archive (optional - uncomment if you want to ignore)
-# legacy-archive/
-
-# Sensitive/Private data
-*.key
-*.pem
-*.cert
-secrets/
