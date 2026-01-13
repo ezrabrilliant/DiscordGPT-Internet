@@ -121,8 +121,8 @@ class RAGService:
         
         return len(documents)
     
-    def search(self, query: str, k: int = 5) -> List[Dict]:
-        """Search for similar documents"""
+    def search(self, query: str, k: int = 5, user_filter: str = None) -> List[Dict]:
+        """Search for similar documents, optionally filtered by user"""
         # Return empty if no documents indexed yet
         if self.collection.count() == 0:
             return []
@@ -130,11 +130,17 @@ class RAGService:
         # Generate query embedding
         query_embedding = self.embedder.encode(query).tolist()
         
-        # Search
+        # Build where clause for user filtering (prevents context leakage)
+        where_clause = None
+        if user_filter:
+            where_clause = {"user": user_filter}
+        
+        # Search with optional user filter
         results = self.collection.query(
             query_embeddings=[query_embedding],
             n_results=min(k, self.collection.count()),
-            include=["documents", "metadatas", "distances"]
+            include=["documents", "metadatas", "distances"],
+            where=where_clause
         )
         
         # Format results

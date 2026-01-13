@@ -2,8 +2,12 @@
 # Waits for LM Studio, then starts AI Engine + Tunnel
 # Add to Windows Startup for automatic launch
 
+# Get script directory (handle both direct execution and dot-sourcing)
+$scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+if (-not $scriptDir) { $scriptDir = "c:\Users\ezrak\OneDrive\Documents\Code\js\ezra-project\DiscordGPT-Internet\services\ai-engine" }
+
 # Load from .env file or use environment variables
-$envFile = Join-Path $PSScriptRoot ".env"
+$envFile = Join-Path $scriptDir ".env"
 if (Test-Path $envFile) {
     Get-Content $envFile | ForEach-Object {
         if ($_ -match '^([^#=]+)=(.*)$') {
@@ -44,14 +48,17 @@ $maxWait = 300  # 5 minutes max
 
 while (-not $lmStudioReady -and $waitTime -lt $maxWait) {
     try {
-        $response = Invoke-RestMethod -Uri $LM_STUDIO_URL -TimeoutSec 2 -ErrorAction SilentlyContinue
+        $response = Invoke-RestMethod -Uri $LM_STUDIO_URL -TimeoutSec 10 -ErrorAction Stop
         if ($response.data -and $response.data.Count -gt 0) {
             $lmStudioReady = $true
             $modelName = $response.data[0].id
             Write-Log "LM Studio ready! Model: $modelName" Green
         }
     } catch {
-        # Still waiting
+        # Still waiting - show error for debugging
+        if ($waitTime % 30 -eq 0 -and $waitTime -gt 0) {
+            Write-Log "Connection attempt failed, retrying..." Gray
+        }
     }
     
     if (-not $lmStudioReady) {
@@ -73,7 +80,6 @@ if (-not $lmStudioReady) {
 # ============================================
 Write-Log "Starting AI Engine..." Yellow
 
-$scriptDir = $PSScriptRoot
 $pythonPath = Join-Path $scriptDir "venv\Scripts\python.exe"
 $mainPath = Join-Path $scriptDir "src\main.py"
 

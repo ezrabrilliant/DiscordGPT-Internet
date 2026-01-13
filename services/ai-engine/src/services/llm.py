@@ -8,7 +8,7 @@ import os
 import asyncio
 from typing import Optional
 
-class OllamaService:
+class LLMService:
     """LLM Service - supports LM Studio (OpenAI-compatible API)"""
     
     def __init__(self):

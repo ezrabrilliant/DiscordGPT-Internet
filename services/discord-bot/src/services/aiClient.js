@@ -289,8 +289,11 @@ async function checkLocalHealth() {
 
 /**
  * Chat with Local AI Engine
+ * @param {string} message - User's message
+ * @param {string} userId - User ID for context isolation (prevents context leakage between users)
+ * @param {object} context - Additional context
  */
-async function chatLocal(message, context = {}) {
+async function chatLocal(message, userId = null, context = {}) {
     const headers = { 'Content-Type': 'application/json' };
     if (AI_API_KEY) headers['X-API-Key'] = AI_API_KEY;
 
@@ -299,7 +302,11 @@ async function chatLocal(message, context = {}) {
         {
             method: 'POST',
             headers,
-            body: JSON.stringify({ message, context }),
+            body: JSON.stringify({ 
+                message, 
+                user: userId,  // Pass user ID for per-user context isolation
+                context 
+            }),
         },
         REQUEST_TIMEOUT
     );
@@ -464,10 +471,13 @@ function stopHealthChecks() {
  * @returns {Promise<{success: boolean, response?: string, provider?: string, error?: string}>}
  */
 async function chat(message, context = {}) {
+    // Extract user ID for per-user context isolation
+    const userId = context.user || null;
+    
     // Try Local AI Engine first
     if (localEngineConnected) {
         try {
-            const response = await chatLocal(message, context);
+            const response = await chatLocal(message, userId, context);
             return { 
                 success: true, 
                 response, 

@@ -114,6 +114,7 @@ app.add_middleware(
 
 class ChatRequest(BaseModel):
     message: str
+    user: Optional[str] = None  # User ID for context isolation
     context: Optional[dict] = None
 
 class ChatResponse(BaseModel):
@@ -167,10 +168,10 @@ async def health_check():
         (now - _last_llm_check).total_seconds() > _llm_check_interval
     )
     
-    if should_check_llm and ollama_service:
+    if should_check_llm and llm_service:
         try:
             ollama_ok = await asyncio.wait_for(
-                ollama_service.is_available(),
+                llm_service.is_available(),
                 timeout=3.0  # Max 3 seconds for LLM check
             )
             _cached_llm_status = ollama_ok
@@ -193,20 +194,24 @@ async def health_check():
 @app.post("/chat", response_model=ChatResponse, dependencies=[Depends(verify_api_key)])
 async def chat(request: ChatRequest):
     """Process chat message with RAG context"""
-    if not ollama_service:
+    if not llm_service:
         raise HTTPException(status_code=503, detail="Ollama service not available")
     
     try:
-        # 1. Search for relevant context from history
+        # 1. Search for relevant context from THIS USER's history only
         context_docs = []
-        if rag_service:
-            context_docs = rag_service.search(request.message, k=5)
+        if rag_service and request.user:
+            # Filter by user to prevent context leakage between users
+            context_docs = rag_service.search(request.message, k=5, user_filter=request.user)
         
-        # 2. Build prompt with context
-        context_text = "\n".join([doc["content"] for doc in context_docs]) if context_docs else ""
+        # 2. Build prompt with context (filter out None values)
+        context_text = ""
+        if context_docs:
+            valid_contents = [doc.get("content", "") for doc in context_docs if doc.get("content")]
+            context_text = "\n".join(valid_contents) if valid_contents else ""
         
-        # 3. Generate response with Ollama
-        response = await ollama_service.generate(
+        # 3. Generate response with LLM
+        response = await llm_service.generate(
             prompt=request.message,
             context=context_text,
             user_context=request.context
@@ -250,14 +255,14 @@ async def get_status():
     
     if rag_service:
         doc_count = rag_service.get_document_count()
-    if ollama_service:
-        model_name = ollama_service.model_name
+    if llm_service:
+        model_name = llm_service.model_name
     
     return {
         "documents_indexed": doc_count,
         "ollama_model": model_name,
         "rag_available": rag_service is not None,
-        "ollama_available": ollama_service is not None,
+        "ollama_available": llm_service is not None,
         "uptime": "running"
     }
 
