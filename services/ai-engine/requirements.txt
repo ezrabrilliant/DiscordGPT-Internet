@@ -1,0 +1,11 @@
+# AI Engine for Discord Bot RAG System
+# Python 3.10+ recommended (3.13 may have compatibility issues)
+
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+chromadb>=0.4.22
+sentence-transformers>=2.3.0
+python-dotenv>=1.0.0
+httpx>=0.26.0
+pydantic>=2.5.0
+torch>=2.0.0

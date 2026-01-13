@@ -21,6 +21,7 @@ module.exports = {
         ERROR_ROLE: '⛔ You cannot mention roles!',
         SEARCH_DISABLED: 'The search feature is temporarily disabled.',
         AI_DISABLED: 'The AI chat feature is currently under development. Try !khodam @username',
+        AI_UNAVAILABLE: '😵 Maaf, AI sedang tidak tersedia. Coba lagi nanti ya!',
         KHODAM_USAGE: 'Invalid format. Use: `!Khodam @username` or `!cekKhodam @username`',
     },
 

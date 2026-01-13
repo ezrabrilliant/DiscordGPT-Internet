@@ -6,6 +6,7 @@
 const { getCommand } = require('../commands');
 const { security, logger } = require('../middleware');
 const { PREFIX, AI_PREFIXES, MESSAGES } = require('../config');
+const aiClient = require('../services/aiClient');
 
 /**
  * Parse command from message content
@@ -22,6 +23,21 @@ function parseMessage(content) {
 function isAIMessage(content) {
     const lower = content.toLowerCase();
     return AI_PREFIXES.some(prefix => lower.startsWith(prefix));
+}
+
+/**
+ * Extract the actual question from AI message
+ * Removes the prefix (zra, ezra) from the message
+ */
+function extractAIQuery(content) {
+    const lower = content.toLowerCase();
+    for (const prefix of AI_PREFIXES) {
+        if (lower.startsWith(prefix)) {
+            // Remove prefix and trim, handle cases like "zra," or "ezra "
+            return content.slice(prefix.length).replace(/^[,\s]+/, '').trim();
+        }
+    }
+    return content;
 }
 
 /**
@@ -61,8 +77,53 @@ async function handleMessage(message) {
 
         // Layer 4: AI Chat (prefix: zra, ezra)
         if (isAIMessage(message.content)) {
-            logger.info('AI chat attempted (disabled)', { user: message.author.tag });
-            return message.reply(MESSAGES.AI_DISABLED);
+            const query = extractAIQuery(message.content);
+            
+            // Check if there's actually a question
+            if (!query || query.length < 2) {
+                return message.reply('Halo! Ada yang bisa kubantu? 😊');
+            }
+
+            // Show typing indicator
+            await message.channel.sendTyping();
+
+            // Get AI response
+            const result = await aiClient.chat(query, {
+                username: message.author.username,
+                userId: message.author.id,
+                serverId: message.guild?.id,
+                serverName: message.guild?.name,
+                channelId: message.channel.id,
+                channelName: message.channel.name,
+            });
+
+            if (result.success) {
+                // Send response
+                const reply = await message.reply(result.response);
+
+                // Log conversation for RAG
+                await aiClient.logConversation({
+                    server: message.guild?.id,
+                    user: message.author.id,
+                    username: message.author.username,
+                    query: query,
+                    reply: result.response,
+                });
+
+                // Log provider info
+                logger.info('AI response sent', {
+                    user: message.author.tag,
+                    provider: result.provider,
+                    queryLength: query.length,
+                    responseLength: result.response.length
+                });
+            } else {
+                // AI failed
+                logger.error('AI chat failed', { error: result.error });
+                return message.reply(MESSAGES.AI_UNAVAILABLE || '😵 Maaf, AI sedang tidak tersedia. Coba lagi nanti ya!');
+            }
+
+            return;
         }
 
     } catch (error) {

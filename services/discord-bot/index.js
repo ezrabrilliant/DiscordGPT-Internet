@@ -13,6 +13,7 @@ const { Client, IntentsBitField, GatewayIntentBits, ActivityType } = require('di
 const { env } = require('./src/config');
 const { logger } = require('./src/middleware');
 const handleMessage = require('./src/handlers/handleMessage');
+const aiClient = require('./src/services/aiClient');
 
 // ============================================
 // BOT CLIENT SETUP
@@ -55,6 +56,10 @@ bot.on('ready', () => {
     logger.info(`Bot logged in as ${bot.user.tag}`);
     logger.info(`Serving ${bot.guilds.cache.size} guilds`);
 
+    // Start AI health checks
+    aiClient.startHealthChecks();
+    logger.info('AI health checks started', aiClient.getStatus());
+
     // Set initial activity and rotate every 30 seconds
     rotateActivity();
     setInterval(rotateActivity, 30000);
@@ -76,12 +81,14 @@ bot.on('warn', (warning) => {
 
 process.on('SIGINT', () => {
     logger.info('Received SIGINT, shutting down gracefully...');
+    aiClient.stopHealthChecks();
     bot.destroy();
     process.exit(0);
 });
 
 process.on('SIGTERM', () => {
     logger.info('Received SIGTERM, shutting down gracefully...');
+    aiClient.stopHealthChecks();
     bot.destroy();
     process.exit(0);
 });
