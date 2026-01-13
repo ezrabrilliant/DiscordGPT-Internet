@@ -16,6 +16,7 @@ package-lock.json
 *.log
 logs/
 data/*.log
+pending-logs.json
 
 # Build outputs
 dist/
@@ -55,6 +56,11 @@ ENV/
 *.egg-info/
 .eggs/
 
+# AI Engine Data (ChromaDB, sync state - regeneratable)
+services/ai-engine/data/chromadb/
+services/ai-engine/data/*.json
+!services/ai-engine/data/.gitkeep
+
 # Temporary files
 tmp/
 temp/
@@ -69,3 +75,9 @@ temp/
 *.pem
 *.cert
 secrets/
+services/discord-bot/package-lock.zip
+services/ai-engine/data/chromadb/chroma.sqlite3
+services/ai-engine/data/chromadb/chroma.sqlite3
+data/chromadb/chroma.sqlite3
+services/ai-engine/data/chromadb/chroma.sqlite3
+services/ai-engine/data/chromadb/chroma.sqlite3

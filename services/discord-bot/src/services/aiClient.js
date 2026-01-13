@@ -13,21 +13,25 @@ const path = require('path');
 // Configuration
 // ============================================
 
-// Local AI Engine (your PC via cloudflared tunnel)
-const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:8000';
-const AI_API_KEY = process.env.AI_API_KEY || ''; // Optional API key for local engine
+// Dynamic URL from GitHub Gist (auto-updated when tunnel restarts)
+const TUNNEL_URL_GIST = process.env.TUNNEL_URL_GIST || ''; // Raw Gist URL
+let AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:8000';
+const AI_API_KEY = process.env.AI_API_KEY || ''; // API key for security
 
 // OpenAI Fallback
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.API_KEY || '';
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-3.5-turbo';
 
 // Timing
-const HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
-const REQUEST_TIMEOUT = 30000; // 30 seconds (longer for AI)
-const OPENAI_TIMEOUT = 60000; // 60 seconds for OpenAI
+const HEALTH_CHECK_INTERVAL = 60000; // 60 seconds
+const URL_REFRESH_INTERVAL = 300000; // 5 minutes - check for new tunnel URL
+const REQUEST_TIMEOUT = 60000; // 60 seconds for tunnel requests
+const OPENAI_TIMEOUT = 90000; // 90 seconds for OpenAI
+const HEALTH_TIMEOUT = 10000; // 10 seconds for health check
 
 // Log file path
 const LOG_FILE = process.env.LOG_FILE || path.join(__dirname, '../../messages.log');
+const PENDING_QUEUE_FILE = path.join(__dirname, '../../pending-logs.json');
 
 // ============================================
 // State
@@ -36,11 +40,39 @@ const LOG_FILE = process.env.LOG_FILE || path.join(__dirname, '../../messages.lo
 let localEngineConnected = false;
 let lastHealthCheck = null;
 let healthCheckTimer = null;
+let urlRefreshTimer = null;
 let currentProvider = 'none'; // 'local', 'openai', 'none'
+let pendingLogs = []; // Queue untuk log yang gagal terkirim
+let isSyncingPending = false;
 
 // ============================================
 // Helper Functions
 // ============================================
+
+/**
+ * Fetch tunnel URL from GitHub Gist (auto-sync)
+ */
+async function refreshTunnelUrl() {
+    if (!TUNNEL_URL_GIST) return;
+    
+    try {
+        const response = await fetch(TUNNEL_URL_GIST, { 
+            headers: { 'Cache-Control': 'no-cache' }
+        });
+        if (response.ok) {
+            const newUrl = (await response.text()).trim();
+            if (newUrl && newUrl.startsWith('http') && newUrl !== AI_ENGINE_URL) {
+                const oldUrl = AI_ENGINE_URL;
+                AI_ENGINE_URL = newUrl;
+                logger.info('🔄 Tunnel URL updated', { old: oldUrl, new: newUrl });
+                // Force health check with new URL
+                await checkLocalHealth();
+            }
+        }
+    } catch (error) {
+        logger.debug('Failed to refresh tunnel URL', { error: error.message });
+    }
+}
 
 /**
  * Make HTTP request with timeout
@@ -74,28 +106,150 @@ function appendToLog(logEntry) {
 }
 
 // ============================================
+// Pending Logs Queue (untuk sync saat PC nyala)
+// ============================================
+
+/**
+ * Load pending logs from file (saat bot restart)
+ */
+function loadPendingLogs() {
+    try {
+        if (fs.existsSync(PENDING_QUEUE_FILE)) {
+            const data = fs.readFileSync(PENDING_QUEUE_FILE, 'utf8');
+            pendingLogs = JSON.parse(data);
+            if (pendingLogs.length > 0) {
+                logger.info(`📋 Loaded ${pendingLogs.length} pending logs to sync`);
+            }
+        }
+    } catch (error) {
+        logger.debug('Failed to load pending logs', { error: error.message });
+        pendingLogs = [];
+    }
+}
+
+/**
+ * Save pending logs to file (persist across restart)
+ */
+function savePendingLogs() {
+    try {
+        fs.writeFileSync(PENDING_QUEUE_FILE, JSON.stringify(pendingLogs, null, 2));
+    } catch (error) {
+        logger.debug('Failed to save pending logs', { error: error.message });
+    }
+}
+
+/**
+ * Add log to pending queue (ketika AI Engine offline)
+ */
+function addToPendingQueue(logData) {
+    // Limit queue size to prevent memory issues
+    const MAX_PENDING = 1000;
+    if (pendingLogs.length >= MAX_PENDING) {
+        // Remove oldest entries
+        pendingLogs = pendingLogs.slice(-MAX_PENDING + 100);
+    }
+    
+    pendingLogs.push({
+        ...logData,
+        queuedAt: new Date().toISOString()
+    });
+    savePendingLogs();
+}
+
+/**
+ * Sync all pending logs to AI Engine (dipanggil saat reconnect)
+ */
+async function syncPendingLogs() {
+    if (!localEngineConnected || pendingLogs.length === 0 || isSyncingPending) {
+        return;
+    }
+    
+    isSyncingPending = true;
+    const toSync = [...pendingLogs];
+    let synced = 0;
+    let failed = 0;
+    
+    logger.info(`📤 Syncing ${toSync.length} pending logs to AI Engine...`);
+    
+    for (const logData of toSync) {
+        try {
+            const headers = { 'Content-Type': 'application/json' };
+            if (AI_API_KEY) headers['X-API-Key'] = AI_API_KEY;
+            
+            const response = await fetchWithTimeout(
+                `${AI_ENGINE_URL}/log`,
+                {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(logData),
+                },
+                5000 // 5 second timeout per log
+            );
+            
+            if (response.ok) {
+                synced++;
+                // Remove from pending queue
+                const idx = pendingLogs.findIndex(p => p.queuedAt === logData.queuedAt);
+                if (idx !== -1) {
+                    pendingLogs.splice(idx, 1);
+                }
+            } else {
+                failed++;
+            }
+        } catch (error) {
+            failed++;
+            // If connection lost during sync, stop
+            if (!localEngineConnected) break;
+        }
+        
+        // Small delay to not overwhelm the server
+        await new Promise(r => setTimeout(r, 50));
+    }
+    
+    savePendingLogs();
+    isSyncingPending = false;
+    
+    if (synced > 0) {
+        logger.info(`✅ Synced ${synced} pending logs (${failed} failed, ${pendingLogs.length} remaining)`);
+    }
+}
+
+// ============================================
 // Local AI Engine (Your PC)
 // ============================================
 
 /**
  * Check if Local AI Engine is online
+ * Uses /ping endpoint for fast response, falls back to /health
  */
 async function checkLocalHealth() {
     try {
         const headers = {};
         if (AI_API_KEY) headers['X-API-Key'] = AI_API_KEY;
 
-        const response = await fetchWithTimeout(
-            `${AI_ENGINE_URL}/health`,
-            { headers },
-            5000
-        );
+        // First try fast /ping endpoint (instant response)
+        let response;
+        try {
+            response = await fetchWithTimeout(
+                `${AI_ENGINE_URL}/ping`,
+                { headers },
+                5000  // 5 second timeout for ping
+            );
+        } catch (pingError) {
+            // Fallback to /health if /ping doesn't exist
+            response = await fetchWithTimeout(
+                `${AI_ENGINE_URL}/health`,
+                { headers },
+                HEALTH_TIMEOUT
+            );
+        }
         
         const wasConnected = localEngineConnected;
         
         if (response.ok) {
             const data = await response.json();
-            localEngineConnected = data.status === 'healthy' || data.ollama || data.chromadb;
+            // /ping just returns {status: "ok"}, /health returns detailed info
+            localEngineConnected = data.status === 'ok' || data.status === 'healthy' || data.ollama || data.chromadb;
         } else {
             localEngineConnected = false;
         }
@@ -106,6 +260,8 @@ async function checkLocalHealth() {
         if (localEngineConnected && !wasConnected) {
             logger.info('🟢 Local AI Engine connected', { url: AI_ENGINE_URL });
             currentProvider = 'local';
+            // Sync pending logs when reconnected
+            syncPendingLogs();
         } else if (!localEngineConnected && wasConnected) {
             logger.warn('🔴 Local AI Engine disconnected, switching to OpenAI fallback');
             currentProvider = OPENAI_API_KEY ? 'openai' : 'none';
@@ -158,26 +314,39 @@ async function chatLocal(message, context = {}) {
 
 /**
  * Send log to Local AI Engine for RAG indexing
+ * Jika gagal, masukkan ke pending queue
  */
 async function sendLogToLocal(logData) {
-    if (!localEngineConnected) return false;
+    if (!localEngineConnected) {
+        // AI Engine offline - queue for later
+        addToPendingQueue(logData);
+        return false;
+    }
 
     try {
         const headers = { 'Content-Type': 'application/json' };
         if (AI_API_KEY) headers['X-API-Key'] = AI_API_KEY;
 
-        await fetchWithTimeout(
+        const response = await fetchWithTimeout(
             `${AI_ENGINE_URL}/log`,
             {
                 method: 'POST',
                 headers,
                 body: JSON.stringify(logData),
             },
-            5000
+            5000 // 5 second timeout
         );
+        
+        if (!response.ok) {
+            // Failed - queue for retry
+            addToPendingQueue(logData);
+            return false;
+        }
+        
         return true;
     } catch (error) {
-        logger.debug('Failed to send log to Local AI', { error: error.message });
+        // Network error - queue for retry
+        addToPendingQueue(logData);
         return false;
     }
 }
@@ -244,21 +413,33 @@ Balas dengan bahasa yang sama dengan user (Indonesia/English).`;
 // ============================================
 
 /**
- * Start periodic health checks
+ * Start periodic health checks + URL refresh
  */
 function startHealthChecks() {
     if (healthCheckTimer) return;
 
-    // Initial check
+    // Load pending logs from previous session
+    loadPendingLogs();
+
+    // Initial URL refresh from Gist (if configured)
+    if (TUNNEL_URL_GIST) {
+        refreshTunnelUrl();
+        // Periodic URL refresh every 5 minutes
+        urlRefreshTimer = setInterval(refreshTunnelUrl, URL_REFRESH_INTERVAL);
+        logger.info('🔗 Tunnel URL auto-sync enabled', { gist: TUNNEL_URL_GIST });
+    }
+
+    // Initial health check
     checkLocalHealth();
 
-    // Periodic checks
+    // Periodic health checks
     healthCheckTimer = setInterval(checkLocalHealth, HEALTH_CHECK_INTERVAL);
     
     logger.info('🔄 AI health checks started', { 
         localUrl: AI_ENGINE_URL,
         hasOpenAIKey: !!OPENAI_API_KEY,
-        interval: HEALTH_CHECK_INTERVAL 
+        interval: HEALTH_CHECK_INTERVAL,
+        pendingLogs: pendingLogs.length
     });
 }
 
@@ -269,6 +450,10 @@ function stopHealthChecks() {
     if (healthCheckTimer) {
         clearInterval(healthCheckTimer);
         healthCheckTimer = null;
+    }
+    if (urlRefreshTimer) {
+        clearInterval(urlRefreshTimer);
+        urlRefreshTimer = null;
     }
 }
 

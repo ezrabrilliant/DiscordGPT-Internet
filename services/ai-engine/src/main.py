@@ -9,8 +9,11 @@ from pydantic import BaseModel
 from typing import Optional
 from contextlib import asynccontextmanager
 import uvicorn
+import asyncio
 import os
 import sys
+import re
+import json
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -21,25 +24,36 @@ load_dotenv()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from services.rag import RAGService
-from services.ollama import OllamaService
+from services.llm import LLMService
 
 # Global services (initialized in lifespan)
 rag_service: RAGService = None
-ollama_service: OllamaService = None
+llm_service: LLMService = None
 
-# API Key for security (optional)
+# Cached health status (to avoid slow checks on every request)
+_cached_llm_status = False
+_last_llm_check = None
+_llm_check_interval = 30  # Seconds between actual LLM health checks
+
+# API Key for security (REQUIRED for tunnel security)
 API_KEY = os.getenv("API_KEY", None)
+if not API_KEY:
+    print("⚠️  WARNING: No API_KEY set! Add API_KEY to .env for security")
+    print("   Example: API_KEY=your-secret-key-here")
 
 async def verify_api_key(x_api_key: Optional[str] = Header(None)):
-    """Verify API key if configured"""
-    if API_KEY and x_api_key != API_KEY:
-        raise HTTPException(status_code=401, detail="Invalid API Key")
+    """Verify API key - required for all protected endpoints"""
+    if not API_KEY:
+        # No key configured = allow all (dev mode)
+        return True
+    if x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API Key")
     return True
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan - startup and shutdown"""
-    global rag_service, ollama_service
+    global rag_service, llm_service
     
     print("=" * 50)
     print("🚀 Ezra AI Engine Starting...")
@@ -54,17 +68,17 @@ async def lifespan(app: FastAPI):
         print(f"   ❌ RAG Service failed: {e}")
         rag_service = None
     
-    print("\n🤖 Initializing Ollama Service...")
+    print("\n🤖 Initializing LLM Service (LM Studio)...")
     try:
-        ollama_service = OllamaService()
-        is_online = await ollama_service.is_available()
+        llm_service = LLMService()
+        is_online = await llm_service.is_available()
         if is_online:
-            print(f"   ✅ Ollama connected (model: {ollama_service.model_name})")
+            print(f"   ✅ LM Studio connected (model: {llm_service.model_name})")
         else:
-            print(f"   ⚠️ Ollama not running - start with 'ollama serve'")
+            print(f"   ⚠️ LM Studio not running - start LM Studio and load a model")
     except Exception as e:
-        print(f"   ❌ Ollama Service failed: {e}")
-        ollama_service = None
+        print(f"   ❌ LLM Service failed: {e}")
+        llm_service = None
     
     port = int(os.getenv("PORT", 8000))
     print(f"\n🌐 Server running at http://localhost:{port}")
@@ -74,8 +88,8 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     print("\n👋 Shutting down AI Engine...")
-    if ollama_service and ollama_service.client:
-        await ollama_service.client.aclose()
+    if llm_service and llm_service.client:
+        await llm_service.client.aclose()
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -133,14 +147,39 @@ async def root():
         "endpoints": ["/health", "/chat", "/log", "/status"]
     }
 
+@app.get("/ping")
+async def ping():
+    """Ultra-lightweight ping endpoint - instant response"""
+    return {"status": "ok", "timestamp": datetime.now().isoformat()}
+
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
-    """Health check endpoint for Discord bot"""
-    ollama_ok = False
-    chromadb_ok = False
+    """Health check endpoint for Discord bot (uses cached LLM status)"""
+    global _cached_llm_status, _last_llm_check
     
-    if ollama_service:
-        ollama_ok = await ollama_service.is_available()
+    chromadb_ok = False
+    ollama_ok = _cached_llm_status  # Use cached by default
+    
+    # Only check LLM status every 30 seconds
+    now = datetime.now()
+    should_check_llm = (
+        _last_llm_check is None or 
+        (now - _last_llm_check).total_seconds() > _llm_check_interval
+    )
+    
+    if should_check_llm and ollama_service:
+        try:
+            ollama_ok = await asyncio.wait_for(
+                ollama_service.is_available(),
+                timeout=3.0  # Max 3 seconds for LLM check
+            )
+            _cached_llm_status = ollama_ok
+            _last_llm_check = now
+        except asyncio.TimeoutError:
+            ollama_ok = _cached_llm_status  # Use cached if timeout
+        except Exception:
+            ollama_ok = False
+    
     if rag_service:
         chromadb_ok = rag_service.is_available()
     
@@ -148,7 +187,7 @@ async def health_check():
         status="healthy" if (ollama_ok and chromadb_ok) else "degraded",
         ollama=ollama_ok,
         chromadb=chromadb_ok,
-        timestamp=datetime.now().isoformat()
+        timestamp=now.isoformat()
     )
 
 @app.post("/chat", response_model=ChatResponse, dependencies=[Depends(verify_api_key)])
@@ -220,6 +259,196 @@ async def get_status():
         "rag_available": rag_service is not None,
         "ollama_available": ollama_service is not None,
         "uptime": "running"
+    }
+
+# ============================================
+# Optimized Log Sync System
+# ============================================
+
+# Track sync progress (persisted to file)
+SYNC_STATE_FILE = os.path.join(os.path.dirname(__file__), "../data/sync_state.json")
+
+def load_sync_state():
+    """Load last sync position"""
+    try:
+        if os.path.exists(SYNC_STATE_FILE):
+            with open(SYNC_STATE_FILE, 'r') as f:
+                return json.load(f)
+    except:
+        pass
+    return {"last_line": 0, "last_sync": None}
+
+def save_sync_state(state):
+    """Save sync position"""
+    os.makedirs(os.path.dirname(SYNC_STATE_FILE), exist_ok=True)
+    with open(SYNC_STATE_FILE, 'w') as f:
+        json.dump(state, f)
+
+class SyncLogsRequest(BaseModel):
+    log_path: Optional[str] = None
+    batch_size: int = 100  # Process 100 entries per batch
+    max_entries: Optional[int] = None  # Limit total entries (None = all new)
+    force_full: bool = False  # Force re-sync from beginning
+
+def parse_log_line(line: str) -> Optional[dict]:
+    """Parse a single log line, return dict or None if not valid"""
+    line = line.strip()
+    if not line:
+        return None
+    
+    try:
+        # New JSON format: 2026-01-13T18:19:09.059Z - {"timestamp":...}
+        json_match = re.match(r'^([\d\-T:.Z]+) - ({.*})$', line)
+        if json_match:
+            timestamp_prefix = json_match.group(1)
+            data = json.loads(json_match.group(2))
+            if 'query' in data and 'reply' in data:
+                return {
+                    "content": f"User {data.get('username', 'unknown')} asked: {data['query']}\nBot replied: {data['reply']}",
+                    "metadata": {
+                        "server": data.get('server', 'unknown'),
+                        "user": data.get('user', 'unknown'),
+                        "username": data.get('username', 'unknown'),
+                        "timestamp": data.get('timestamp', timestamp_prefix),
+                        "provider": data.get('provider', 'unknown'),
+                        "source": "sync"
+                    }
+                }
+        
+        # Old format: 2026-01-13T08:10:50.103Z - "[User: @name],...
+        old_match = re.match(r'^([\d\-T:.Z]+) - "\[User: @?([^\]]+)\],\\n \[Query: ([^\]]*)\],\\n \[reply: ([^\]]*)\]', line)
+        if old_match:
+            timestamp, username, query, reply = old_match.groups()
+            query = query.replace('\\n', '\n').strip()
+            reply = reply.replace('\\n', '\n').strip()
+            return {
+                "content": f"User {username} asked: {query}\nBot replied: {reply}",
+                "metadata": {
+                    "server": "unknown",
+                    "user": "unknown",
+                    "username": username,
+                    "timestamp": timestamp,
+                    "provider": "legacy",
+                    "source": "sync"
+                }
+            }
+    except:
+        pass
+    return None
+
+@app.post("/sync-logs", dependencies=[Depends(verify_api_key)])
+async def sync_logs(request: SyncLogsRequest = None):
+    """
+    Optimized incremental log sync with batch processing.
+    Only syncs NEW entries since last sync (unless force_full=True).
+    """
+    if not rag_service:
+        raise HTTPException(status_code=503, detail="RAG service not available")
+    
+    if request is None:
+        request = SyncLogsRequest()
+    
+    # Find log file
+    log_path = request.log_path
+    if not log_path:
+        possible_paths = [
+            os.path.join(os.path.dirname(__file__), "../../discord-bot/messages.log"),
+            os.path.join(os.path.dirname(__file__), "../../../services/discord-bot/messages.log"),
+            "C:/Users/ezrak/OneDrive/Documents/Code/js/ezra-project/DiscordGPT-Internet/services/discord-bot/messages.log"
+        ]
+        for p in possible_paths:
+            if os.path.exists(p):
+                log_path = p
+                break
+    
+    if not log_path or not os.path.exists(log_path):
+        return {"status": "skipped", "reason": "messages.log not found", "imported": 0}
+    
+    # Load sync state
+    sync_state = load_sync_state()
+    start_line = 0 if request.force_full else sync_state.get("last_line", 0)
+    
+    imported = 0
+    skipped = 0
+    processed = 0
+    
+    try:
+        with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
+            # Skip to last position
+            for _ in range(start_line):
+                f.readline()
+            
+            batch = []
+            current_line = start_line
+            
+            for line in f:
+                current_line += 1
+                processed += 1
+                
+                # Check max entries limit
+                if request.max_entries and imported >= request.max_entries:
+                    break
+                
+                # Parse line
+                parsed = parse_log_line(line)
+                if parsed:
+                    batch.append(parsed)
+                else:
+                    skipped += 1
+                
+                # Process batch when full
+                if len(batch) >= request.batch_size:
+                    for item in batch:
+                        rag_service.add_document(
+                            content=item["content"],
+                            metadata=item["metadata"]
+                        )
+                        imported += 1
+                    batch = []
+                    
+                    # Small delay to prevent overwhelming
+                    await asyncio.sleep(0.01)
+            
+            # Process remaining batch
+            for item in batch:
+                rag_service.add_document(
+                    content=item["content"],
+                    metadata=item["metadata"]
+                )
+                imported += 1
+        
+        # Save sync state
+        sync_state["last_line"] = current_line
+        sync_state["last_sync"] = datetime.now().isoformat()
+        save_sync_state(sync_state)
+        
+        return {
+            "status": "success",
+            "imported": imported,
+            "skipped": skipped,
+            "processed_lines": processed,
+            "total_documents": rag_service.get_document_count(),
+            "sync_position": current_line
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to sync logs: {str(e)}")
+
+@app.post("/sync-logs/reset", dependencies=[Depends(verify_api_key)])
+async def reset_sync_state():
+    """Reset sync state to re-sync from beginning"""
+    save_sync_state({"last_line": 0, "last_sync": None})
+    return {"status": "reset", "message": "Sync state cleared. Next sync will start from beginning."}
+
+@app.get("/sync-logs/status")
+async def get_sync_status():
+    """Get current sync status"""
+    state = load_sync_state()
+    doc_count = rag_service.get_document_count() if rag_service else 0
+    return {
+        "last_synced_line": state.get("last_line", 0),
+        "last_sync_time": state.get("last_sync"),
+        "total_documents": doc_count
     }
 
 # ============================================
