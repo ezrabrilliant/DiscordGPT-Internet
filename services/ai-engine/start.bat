@@ -80,6 +80,8 @@ echo [5/5] Starting AI Engine...
 echo.
 echo ══════════════════════════════════════════════════════
 echo   Server will start at: http://localhost:8000
+echo.
+echo   To expose to internet, run tunnel.bat in new window
 echo   Press Ctrl+C to stop
 echo ══════════════════════════════════════════════════════
 echo.
