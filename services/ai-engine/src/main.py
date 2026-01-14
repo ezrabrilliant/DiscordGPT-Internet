@@ -79,47 +79,112 @@ async def verify_api_key(x_api_key: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid or missing API Key")
     return True
 
+# ============================================
+# Console UI Helpers
+# ============================================
+
+def print_banner():
+    """Print beautiful startup banner"""
+    banner = """
+\033[36m╔══════════════════════════════════════════════════════════════╗
+║                                                                ║
+║   ███████╗███████╗██████╗  █████╗      █████╗ ██╗              ║
+║   ██╔════╝╚══███╔╝██╔══██╗██╔══██╗    ██╔══██╗██║              ║
+║   █████╗    ███╔╝ ██████╔╝███████║    ███████║██║              ║
+║   ██╔══╝   ███╔╝  ██╔══██╗██╔══██║    ██╔══██║██║              ║
+║   ███████╗███████╗██║  ██║██║  ██║    ██║  ██║██║              ║
+║   ╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝    ╚═╝  ╚═╝╚═╝              ║
+║                                                                ║
+║   \033[33m🤖 Local AI Engine with RAG Memory\033[36m                          ║
+║   \033[33m📚 ChromaDB + LM Studio + Cloudflare Tunnel\033[36m                 ║
+║                                                                ║
+╚══════════════════════════════════════════════════════════════╝\033[0m
+"""
+    print(banner)
+
+def print_section(title: str, icon: str = "📦"):
+    """Print section header"""
+    print(f"\n\033[36m{'─' * 50}\033[0m")
+    print(f" {icon} \033[1m{title}\033[0m")
+    print(f"\033[36m{'─' * 50}\033[0m")
+
+def print_status(message: str, status: str = "ok"):
+    """Print status message with color"""
+    colors = {
+        "ok": "\033[32m✓\033[0m",      # Green checkmark
+        "warn": "\033[33m⚠\033[0m",    # Yellow warning
+        "error": "\033[31m✗\033[0m",   # Red X
+        "info": "\033[36m→\033[0m",    # Cyan arrow
+    }
+    icon = colors.get(status, colors["info"])
+    print(f"   {icon} {message}")
+
+def print_stats_box(stats: dict):
+    """Print stats in a nice box"""
+    print(f"\n\033[36m┌{'─' * 40}┐\033[0m")
+    for key, value in stats.items():
+        print(f"\033[36m│\033[0m  {key:<25} \033[33m{value:>10}\033[0m \033[36m│\033[0m")
+    print(f"\033[36m└{'─' * 40}┘\033[0m")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan - startup and shutdown"""
     global rag_service, llm_service
     
-    print("=" * 50)
-    print("🚀 Ezra AI Engine Starting...")
-    print("=" * 50)
+    print_banner()
     
-    # Initialize services
-    print("\n📦 Initializing RAG Service...")
+    # Initialize RAG
+    print_section("RAG Service", "📚")
     try:
         rag_service = RAGService()
-        print(f"   ✅ ChromaDB ready ({rag_service.get_document_count()} documents)")
+        doc_count = rag_service.get_document_count()
+        print_status(f"ChromaDB connected", "ok")
+        print_status(f"Documents indexed: {doc_count:,}", "info")
     except Exception as e:
-        print(f"   ❌ RAG Service failed: {e}")
+        print_status(f"RAG Service failed: {e}", "error")
         rag_service = None
     
-    # Load user mapping for username lookup
+    # Load user mapping
     load_user_mapping()
+    if user_mapping:
+        print_status(f"User mapping loaded: {len(user_mapping)} users", "ok")
     
-    print("\n🤖 Initializing LLM Service (LM Studio)...")
+    # Initialize LLM
+    print_section("LLM Service (LM Studio)", "🤖")
     try:
         llm_service = LLMService()
         is_online = await llm_service.is_available()
         if is_online:
-            print(f"   ✅ LM Studio connected (model: {llm_service.model_name})")
+            print_status(f"LM Studio connected", "ok")
+            print_status(f"Model: {llm_service.model_name}", "info")
         else:
-            print(f"   ⚠️ LM Studio not running - start LM Studio and load a model")
+            print_status("LM Studio not running", "warn")
+            print_status("Start LM Studio and load a model", "info")
     except Exception as e:
-        print(f"   ❌ LLM Service failed: {e}")
+        print_status(f"LLM Service failed: {e}", "error")
         llm_service = None
     
+    # Server info
     port = int(os.getenv("PORT", 8000))
-    print(f"\n🌐 Server running at http://localhost:{port}")
-    print("=" * 50)
+    print_section("Server Ready", "🌐")
+    print_status(f"Local:  http://localhost:{port}", "info")
+    print_status(f"API Key: {'Enabled' if API_KEY else 'Disabled (dev mode)'}", "ok" if API_KEY else "warn")
+    
+    # Stats
+    print_stats_box({
+        "Documents": f"{rag_service.get_document_count():,}" if rag_service else "N/A",
+        "Users": f"{len(user_mapping):,}",
+        "LLM": "Online" if llm_service and await llm_service.is_available() else "Offline",
+    })
+    
+    print(f"\n\033[32m{'═' * 50}\033[0m")
+    print(f"\033[32m  🚀 Ezra AI Engine is ready!\033[0m")
+    print(f"\033[32m{'═' * 50}\033[0m\n")
     
     yield  # Server is running
     
     # Shutdown
-    print("\n👋 Shutting down AI Engine...")
+    print(f"\n\033[33m👋 Shutting down AI Engine...\033[0m")
     if llm_service and llm_service.client:
         await llm_service.client.aclose()
 
