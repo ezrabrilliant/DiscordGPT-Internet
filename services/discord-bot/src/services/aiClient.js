@@ -472,7 +472,8 @@ function stopHealthChecks() {
  */
 async function chat(message, context = {}) {
     // Extract user ID for per-user context isolation
-    const userId = context.user || null;
+    // Support both 'user' and 'userId' field names
+    const userId = context.userId || context.user || null;
     
     // Try Local AI Engine first
     if (localEngineConnected) {

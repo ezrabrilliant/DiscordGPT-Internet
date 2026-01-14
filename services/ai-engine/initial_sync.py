@@ -69,20 +69,36 @@ def parse_log_line(line: str) -> dict | None:
         return None
     
     try:
-        # Format 1: New JSON format
-        # 2026-01-13T18:19:09.059Z - {"timestamp":..., "query":..., "reply":...}
-        json_match = re.match(r'^([\d\-T:.Z]+) - ({.*})$', line)
-        if json_match:
-            timestamp = json_match.group(1)
-            data = json.loads(json_match.group(2))
-            if 'query' in data and 'reply' in data:
+        # Format 1: Pure JSON format (cleaned by clean-logs-v2.js)
+        # {"timestamp":"2024-07-26T15:06:28.593Z","server":"...","user":"...","username":"...","query":"...","reply":"...","provider":"..."}
+        if line.startswith('{') and line.endswith('}'):
+            data = json.loads(line)
+            if 'query' in data and 'reply' in data and 'user' in data:
                 return {
                     "content": f"User {data.get('username', 'unknown')} asked: {data['query']}\nBot replied: {data['reply']}",
                     "metadata": {
                         "server": str(data.get('server', 'unknown')),
                         "user": str(data.get('user', 'unknown')),
                         "username": data.get('username', 'unknown'),
-                        "timestamp": data.get('timestamp', timestamp),
+                        "timestamp": data.get('timestamp'),
+                        "provider": data.get('provider', 'unknown'),
+                        "source": "initial_sync"
+                    }
+                }
+        
+        # Format 2: JSON with timestamp prefix (old format from clean-logs-v2.js)
+        # 2024-07-26T15:06:28.593Z - {"timestamp":"...","server":"...","user":"...","username":"...","query":"...","reply":"...","provider":"..."}
+        json_match = re.match(r'^([\d\-T:.Z]+) - ({.*})$', line)
+        if json_match:
+            data = json.loads(json_match.group(2))
+            if 'query' in data and 'reply' in data and 'user' in data:
+                return {
+                    "content": f"User {data.get('username', 'unknown')} asked: {data['query']}\nBot replied: {data['reply']}",
+                    "metadata": {
+                        "server": str(data.get('server', 'unknown')),
+                        "user": str(data.get('user', 'unknown')),
+                        "username": data.get('username', 'unknown'),
+                        "timestamp": data.get('timestamp'),
                         "provider": data.get('provider', 'unknown'),
                         "source": "initial_sync"
                     }

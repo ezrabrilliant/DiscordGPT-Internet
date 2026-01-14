@@ -30,6 +30,35 @@ from services.llm import LLMService
 rag_service: RAGService = None
 llm_service: LLMService = None
 
+# User mapping for username -> user ID lookup
+USER_MAPPING_FILE = os.path.join(os.path.dirname(__file__), '../data/user-mapping.json')
+user_mapping = {}
+
+def load_user_mapping():
+    """Load username to user ID mapping"""
+    global user_mapping
+    try:
+        if os.path.exists(USER_MAPPING_FILE):
+            with open(USER_MAPPING_FILE, 'r', encoding='utf-8') as f:
+                user_mapping = json.load(f)
+            print(f"   📋 Loaded {len(user_mapping)} usernames from user-mapping.json")
+    except Exception as e:
+        print(f"   ⚠️ Failed to load user-mapping.json: {e}")
+
+def find_mentioned_user(message: str) -> tuple[str, str]:
+    """
+    Find if a username is mentioned in the message.
+    Returns (username, user_id) if found, else (None, None)
+    """
+    message_lower = message.lower()
+    for username, servers in user_mapping.items():
+        # Check if username appears in message
+        if username.lower() in message_lower:
+            # Return first user ID found for this username
+            if servers and len(servers) > 0:
+                return username, servers[0].get('user')
+    return None, None
+
 # Cached health status (to avoid slow checks on every request)
 _cached_llm_status = False
 _last_llm_check = None
@@ -67,6 +96,9 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"   ❌ RAG Service failed: {e}")
         rag_service = None
+    
+    # Load user mapping for username lookup
+    load_user_mapping()
     
     print("\n🤖 Initializing LLM Service (LM Studio)...")
     try:
@@ -198,23 +230,62 @@ async def chat(request: ChatRequest):
         raise HTTPException(status_code=503, detail="Ollama service not available")
     
     try:
-        # 1. Search for relevant context from THIS USER's history only
+        # Debug logging
+        print(f"[DEBUG] Chat request - user: {request.user}, message: {request.message[:50]}...")
+        
+        # Detect if user is asking about conversation history
+        history_keywords = ['pernah', 'sebelumnya', 'riwayat', 'history', 'tanyakan', 'bahas', 'ngobrol', 'cerita']
+        is_history_question = any(kw in request.message.lower() for kw in history_keywords)
+        
+        # Check if user is asking about ANOTHER user's history
+        mentioned_username, mentioned_user_id = find_mentioned_user(request.message)
+        target_user = request.user  # Default: search current user's history
+        
+        if mentioned_user_id and mentioned_user_id != request.user:
+            # User is asking about someone else!
+            target_user = mentioned_user_id
+            print(f"[DEBUG] Searching for user '{mentioned_username}' (ID: {mentioned_user_id})")
+        
+        # 1. Search for relevant context from target user's history
         context_docs = []
-        if rag_service and request.user:
-            # Filter by user to prevent context leakage between users
-            context_docs = rag_service.search(request.message, k=5, user_filter=request.user)
+        if rag_service:
+            # For history questions, use a generic query to get diverse results
+            search_query = request.message
+            k_results = 10
+            
+            if is_history_question:
+                # Use empty/generic query to get random sample of user's history
+                search_query = "percakapan topik"  # Generic to get diverse results
+                k_results = 10  # Get history questions
+                print(f"[DEBUG] History question detected, using generic search")
+            
+            context_docs = rag_service.search(search_query, k=k_results, user_filter=target_user)
+            print(f"[DEBUG] RAG found {len(context_docs)} context docs for user {target_user}")
+            
+            # Print all RAG results for debugging
+            for i, doc in enumerate(context_docs):
+                content_preview = doc.get('content', '')[:150].replace('\n', ' ')
+                print(f"[DEBUG] RAG #{i+1}: {content_preview}...")
         
         # 2. Build prompt with context (filter out None values)
         context_text = ""
+        context_owner_info = ""  # Info about whose context this is
+        
         if context_docs:
             valid_contents = [doc.get("content", "") for doc in context_docs if doc.get("content")]
-            context_text = "\n".join(valid_contents) if valid_contents else ""
+            context_text = "\n---\n".join(valid_contents) if valid_contents else ""
+            print(f"[DEBUG] Context text preview: {context_text[:300]}...")
+        
+        # If searching for another user, tell LLM whose history this is
+        if mentioned_username and mentioned_user_id != request.user:
+            context_owner_info = f"CATATAN: Riwayat percakapan di bawah adalah milik user '{mentioned_username}', BUKAN user yang bertanya. Jawab dengan menyebut '{mentioned_username}' atau 'dia/mereka', bukan 'kamu'."
         
         # 3. Generate response with LLM
         response = await llm_service.generate(
             prompt=request.message,
             context=context_text,
-            user_context=request.context
+            user_context=request.context,
+            context_owner_note=context_owner_info
         )
         
         return ChatResponse(
