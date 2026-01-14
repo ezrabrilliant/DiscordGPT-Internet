@@ -22,6 +22,8 @@ validateEnv();
 module.exports = {
     // Discord
     TOKEN: process.env.TOKEN,
+    CLIENT_ID: process.env.CLIENT_ID || null, // For slash command deployment
+    TEST_GUILD_ID: process.env.TEST_GUILD_ID || null, // For testing
 
     // OpenAI (fallback when local AI is offline)
     API_KEY: process.env.API_KEY || null,

@@ -14,6 +14,7 @@ const { env } = require('./src/config');
 const { logger } = require('./src/middleware');
 const handleMessage = require('./src/handlers/handleMessage');
 const aiClient = require('./src/services/aiClient');
+const { slashCommands, deploySlashCommands } = require('./src/slashCommands');
 
 // ============================================
 // BOT CLIENT SETUP
@@ -94,9 +95,17 @@ function rotatePresence() {
 // EVENT HANDLERS
 // ============================================
 
-bot.on('ready', () => {
+bot.on('ready', async () => {
     logger.info(`Bot logged in as ${bot.user.tag}`);
     logger.info(`Serving ${bot.guilds.cache.size} guilds`);
+
+    // Deploy slash commands (do this once, or on update)
+    try {
+        await deploySlashCommands(bot.user.id);
+        logger.info('Slash commands deployed globally');
+    } catch (error) {
+        logger.error('Failed to deploy slash commands', { error: error.message });
+    }
 
     // Start AI health checks
     aiClient.startHealthChecks();
@@ -105,6 +114,35 @@ bot.on('ready', () => {
     // Set initial presence and rotate every 30 seconds
     rotatePresence();
     setInterval(rotatePresence, 30000);
+});
+
+// Handle slash commands
+bot.on('interactionCreate', async (interaction) => {
+    if (!interaction.isChatInputCommand()) return;
+
+    const command = slashCommands.get(interaction.commandName);
+
+    if (!command) {
+        logger.warn(`Unknown slash command: ${interaction.commandName}`);
+        return;
+    }
+
+    try {
+        await command.execute(interaction);
+    } catch (error) {
+        logger.error(`Slash command error: ${interaction.commandName}`, {
+            error: error.message,
+            stack: error.stack,
+        });
+
+        const errorMessage = { content: '❌ Terjadi error saat menjalankan command!', ephemeral: true };
+
+        if (interaction.replied || interaction.deferred) {
+            await interaction.followUp(errorMessage);
+        } else {
+            await interaction.reply(errorMessage);
+        }
+    }
 });
 
 bot.on('messageCreate', handleMessage);
