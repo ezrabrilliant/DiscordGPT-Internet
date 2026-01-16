@@ -3,9 +3,10 @@
  * Talk to AI directly via slash command
  */
 
-const { SlashCommandBuilder, EmbedBuilder, InteractionContextType, ApplicationIntegrationType } = require('discord.js');
+const { SlashCommandBuilder, InteractionContextType, ApplicationIntegrationType } = require('discord.js');
 const aiClient = require('../services/aiClient');
 const { logger } = require('../middleware');
+const branding = require('../config/branding');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -60,14 +61,14 @@ module.exports = {
                     ? query.substring(0, 253) + '...' 
                     : query;
 
-                // Create embed response with Q&A style
-                const embed = new EmbedBuilder()
-                    .setColor(0x5865F2)
-                    .setAuthor({
+                // Create embed using centralized branding
+                const embed = branding.createEmbed({
+                    color: branding.COLORS.primary,
+                    author: {
                         name: `${interaction.user.displayName} asked`,
                         iconURL: interaction.user.displayAvatarURL(),
-                    })
-                    .addFields(
+                    },
+                    fields: [
                         {
                             name: '💭 Question',
                             value: `\`\`\`${displayQuery}\`\`\``,
@@ -80,11 +81,12 @@ module.exports = {
                                 : result.response,
                             inline: false,
                         }
-                    )
-                    .setFooter({
-                        text: `${isPrivate ? '🔒 Private' : '🌐 Public'} • Powered by RAG Memory`,
-                    })
-                    .setTimestamp();
+                    ],
+                    footer: {
+                        isPrivate,
+                        provider: result.provider,
+                    },
+                });
 
                 await interaction.editReply({ embeds: [embed] });
 

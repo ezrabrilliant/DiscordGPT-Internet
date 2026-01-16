@@ -3,9 +3,10 @@
  * Search what someone talked about before
  */
 
-const { SlashCommandBuilder, EmbedBuilder, InteractionContextType, ApplicationIntegrationType } = require('discord.js');
+const { SlashCommandBuilder, InteractionContextType, ApplicationIntegrationType } = require('discord.js');
 const aiClient = require('../services/aiClient');
 const { logger } = require('../middleware');
+const branding = require('../config/branding');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -48,19 +49,17 @@ module.exports = {
             });
 
             if (result.success) {
-                const embed = new EmbedBuilder()
-                    .setColor(0x3498DB)
-                    .setTitle('🧠 Memory Recall')
-                    .setThumbnail(targetUser.displayAvatarURL({ size: 128 }))
-                    .addFields(
+                const embed = branding.createEmbed({
+                    color: branding.COLORS.memory,
+                    title: '🧠 Memory Recall',
+                    thumbnail: targetUser.displayAvatarURL({ size: 128 }),
+                    description: result.response,
+                    fields: [
                         { name: '👤 Target', value: targetUser.displayName, inline: true },
                         { name: '🔍 Topic', value: topic || 'General', inline: true },
-                    )
-                    .setDescription(result.response)
-                    .setFooter({
-                        text: `Powered by RAG Memory`,
-                    })
-                    .setTimestamp();
+                    ],
+                    footer: { provider: result.provider },
+                });
 
                 await interaction.editReply({ embeds: [embed] });
             } else {

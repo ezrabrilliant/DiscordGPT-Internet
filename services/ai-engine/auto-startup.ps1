@@ -95,8 +95,9 @@ if ($existingProcess) {
     Start-Sleep -Seconds 2
 }
 
-Start-Process -FilePath $pythonPath -ArgumentList $mainPath -WorkingDirectory $scriptDir -WindowStyle Minimized
-Write-Log "AI Engine started (minimized)" Green
+# Start AI Engine in new PowerShell window (with colors!)
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$scriptDir'; & '$pythonPath' '$mainPath'" -WorkingDirectory $scriptDir
+Write-Log "AI Engine started (new PowerShell window)" Green
 
 # Wait for AI Engine to be ready
 Start-Sleep -Seconds 3

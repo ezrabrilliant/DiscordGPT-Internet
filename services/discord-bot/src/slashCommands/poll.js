@@ -5,6 +5,7 @@
 
 const { SlashCommandBuilder, EmbedBuilder, InteractionContextType, ApplicationIntegrationType } = require('discord.js');
 const { logger } = require('../middleware');
+const branding = require('../config/branding');
 
 const POLL_EMOJIS = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 
@@ -62,15 +63,12 @@ module.exports = {
             .map((opt, i) => `${POLL_EMOJIS[i]} ${opt}`)
             .join('\n');
 
-        const embed = new EmbedBuilder()
-            .setColor(0x3498DB)
-            .setTitle(`📊 ${question}`)
-            .setDescription(optionsText)
-            .setFooter({
-                text: `Poll by ${interaction.user.displayName}${duration ? ` • Ends in ${duration} minutes` : ''}`,
-                iconURL: interaction.user.displayAvatarURL(),
-            })
-            .setTimestamp();
+        const embed = branding.createEmbed({
+            color: branding.COLORS.poll,
+            title: `📊 ${question}`,
+            description: optionsText,
+            footer: { extra: `Poll by ${interaction.user.displayName}${duration ? ` • Ends in ${duration}m` : ''}` },
+        });
 
         const reply = await interaction.reply({ embeds: [embed], fetchReply: true });
 

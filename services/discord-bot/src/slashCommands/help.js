@@ -2,7 +2,8 @@
  * /help - Show all available commands
  */
 
-const { SlashCommandBuilder, EmbedBuilder, InteractionContextType, ApplicationIntegrationType } = require('discord.js');
+const { SlashCommandBuilder, InteractionContextType, ApplicationIntegrationType } = require('discord.js');
+const branding = require('../config/branding');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -12,11 +13,11 @@ module.exports = {
         .setContexts([InteractionContextType.Guild, InteractionContextType.BotDM, InteractionContextType.PrivateChannel]),
 
     async execute(interaction) {
-        const embed = new EmbedBuilder()
-            .setColor(0x5865F2)
-            .setTitle('📚 Ezra Bot Commands')
-            .setDescription('Berikut semua command yang tersedia:')
-            .addFields(
+        const embed = branding.createEmbed({
+            color: branding.COLORS.primary,
+            title: '📚 Ezra Bot Commands',
+            description: 'Berikut semua command yang tersedia:',
+            fields: [
                 {
                     name: '💬 Chat & AI',
                     value: [
@@ -48,11 +49,9 @@ module.exports = {
                         '• Bot available 24/7, DM kapan aja!',
                     ].join('\n'),
                 },
-            )
-            .setFooter({
-                text: 'Ezra Bot • Powered by RAG Memory',
-            })
-            .setTimestamp();
+            ],
+            footer: {},
+        });
 
         await interaction.reply({ embeds: [embed], ephemeral: true });
     },

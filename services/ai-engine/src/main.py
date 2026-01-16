@@ -167,7 +167,6 @@ async def lifespan(app: FastAPI):
     # Server info
     port = int(os.getenv("PORT", 8000))
     print_section("Server Ready", "🌐")
-    print_status(f"Local:  http://localhost:{port}", "info")
     print_status(f"API Key: {'Enabled' if API_KEY else 'Disabled (dev mode)'}", "ok" if API_KEY else "warn")
     
     # Stats

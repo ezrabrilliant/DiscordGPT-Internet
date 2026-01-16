@@ -3,9 +3,10 @@
  * Fun command to roast a user
  */
 
-const { SlashCommandBuilder, EmbedBuilder, InteractionContextType, ApplicationIntegrationType } = require('discord.js');
+const { SlashCommandBuilder, InteractionContextType, ApplicationIntegrationType } = require('discord.js');
 const aiClient = require('../services/aiClient');
 const { logger } = require('../middleware');
+const branding = require('../config/branding');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -75,20 +76,17 @@ module.exports = {
                     boomer: '👴',
                 };
 
-                const embed = new EmbedBuilder()
-                    .setColor(0xE74C3C)
-                    .setTitle(`🔥 Roasted!`)
-                    .setThumbnail(target.displayAvatarURL({ size: 128 }))
-                    .setDescription(`${result.response}`)
-                    .addFields(
+                const embed = branding.createEmbed({
+                    color: branding.COLORS.roast,
+                    title: '🔥 Roasted!',
+                    thumbnail: target.displayAvatarURL({ size: 128 }),
+                    description: result.response,
+                    fields: [
                         { name: '🎯 Target', value: targetName, inline: true },
                         { name: `${styleEmojis[style]} Style`, value: style.charAt(0).toUpperCase() + style.slice(1), inline: true },
-                    )
-                    .setFooter({
-                        text: `Requested by ${interaction.user.displayName}`,
-                        iconURL: interaction.user.displayAvatarURL(),
-                    })
-                    .setTimestamp();
+                    ],
+                    footer: { provider: result.provider, extra: `by ${interaction.user.displayName}` },
+                });
 
                 await interaction.editReply({ embeds: [embed] });
 

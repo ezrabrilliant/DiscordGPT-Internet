@@ -482,7 +482,7 @@ async function chat(message, context = {}) {
             return { 
                 success: true, 
                 response, 
-                provider: 'local' 
+                provider: 'gemma-3n-e4b' 
             };
         } catch (error) {
             logger.warn('Local AI failed, trying OpenAI fallback', { error: error.message });
@@ -497,14 +497,14 @@ async function chat(message, context = {}) {
             return { 
                 success: true, 
                 response, 
-                provider: 'openai' 
+                provider: 'gpt-3.5-turbo' 
             };
         } catch (error) {
             logger.error('OpenAI fallback failed', { error: error.message });
             return { 
                 success: false, 
                 error: error.message,
-                provider: 'openai'
+                provider: 'gpt-3.5-turbo'
             };
         }
     }

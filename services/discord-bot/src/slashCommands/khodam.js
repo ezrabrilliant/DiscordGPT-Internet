@@ -3,8 +3,9 @@
  * Fun command to check someone's khodam
  */
 
-const { SlashCommandBuilder, EmbedBuilder, InteractionContextType, ApplicationIntegrationType } = require('discord.js');
+const { SlashCommandBuilder, InteractionContextType, ApplicationIntegrationType } = require('discord.js');
 const { KHODAM } = require('../config');
+const branding = require('../config/branding');
 const { logger } = require('../middleware');
 
 module.exports = {
@@ -28,20 +29,17 @@ module.exports = {
         // Generate khodam
         const khodam = generateKhodam();
 
-        // Create fancy embed
-        const embed = new EmbedBuilder()
-            .setColor(khodam === KHODAM.ESCAPE_MESSAGE ? 0xFF6B6B : 0x9B59B6)
-            .setTitle('🔮 Hasil Cek Khodam')
-            .setThumbnail(target.displayAvatarURL({ size: 128 }))
-            .addFields(
+        // Create embed using centralized branding
+        const embed = branding.createEmbed({
+            color: khodam === KHODAM.ESCAPE_MESSAGE ? branding.COLORS.error : branding.COLORS.khodam,
+            title: '🔮 Hasil Cek Khodam',
+            thumbnail: target.displayAvatarURL({ size: 128 }),
+            fields: [
                 { name: '👤 Target', value: targetName, inline: true },
                 { name: '✨ Khodam', value: `**${khodam}**`, inline: true },
-            )
-            .setFooter({
-                text: `Diminta oleh ${interaction.user.displayName}`,
-                iconURL: interaction.user.displayAvatarURL(),
-            })
-            .setTimestamp();
+            ],
+            footer: { extra: `by ${interaction.user.displayName}` },
+        });
 
         await interaction.reply({ embeds: [embed] });
 
