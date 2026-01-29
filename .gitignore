@@ -75,7 +75,11 @@ temp/
 *.pem
 *.cert
 secrets/
-services/discord-bot/package-lock.zip
+
+# Musless (PRIVATE - contains internal jokes, not for public)
+data/knowledge/musless/
+**/musless/
+**/personalities.local.js
 services/ai-engine/data/chromadb/chroma.sqlite3
 services/ai-engine/data/chromadb/chroma.sqlite3
 data/chromadb/chroma.sqlite3

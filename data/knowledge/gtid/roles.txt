@@ -1,0 +1,117 @@
+1. @Pengepul DL
+Role ini adalah role khusus untuk reseller aktif dan reseller yang memiliki reputasi diatas rata-rata. Kami tidak menentukan berapa reputasi yang diperlukan untuk mendapatkan role tersebut. Namun jika menurut kami sudah layak untuk diberikan, role Pengepul DL akan diberikan kepada reseller yang sudah memiliki reputasi diatas rata-rata.
+
+Benefit :
+Lebih dipercaya member daripada role biasa, karena memiliki reputasi yang tinggi dan aktif dalam jual beli diamond lock.
+Lebih menarik pembeli dan penjual dalam transaksi karena memiliki role khusus yang tidak bisa di dapatkan member biasa.
+FAQ
+Q : Reputasi saya sudah mencapai 500, apakah saya bisa mendapatkan role tersebut?
+A : Sesuai poin diatas, role tersebut hanya diberikan jika menurut kami sudah layak untuk diberikan.
+
+Q : Saya famous di platform lain, sesuai poin diatas berarti saya layak untuk mendapatkan role tersebut?
+A : No, Platform marketplace kami tidak mengambil patokan berdasarkan platform lain saja, namun berdasarkan "nilai" reseller tersebut.
+
+Q : Apakah role Pengepul DL dapat dibeli?
+A : Semua role yang ada di GTID tidak diperjual-belikan.
+
+2. @Pengepul Pack
+Role ini adalah role untuk pembeli pack yang aktif tiap hari nya membeli pack di channel buy-sell-pack. Role berikut bisa di dapatkan dengan mudah selama kalian aktif membeli pack, kalian bisa meminta role tersebut dengan cara open tiket lapor dan meminta diberikan role pengepul pack.
+
+Benefit :
+Lebih dipercaya member daripada role biasa, karena memiliki sering membeli pack jadi menghindari adanya PHP/Troll.
+Lebih menarik penjual karena sudah lama dan aktif dalam membeli pack.
+
+3. @Server Booster
+Role ini adalah role untuk booster server yang digunakan untuk berkontribusi ke server Growtopia Indonesia Discord. Cara mendapatkannya cukup mudah, kalian hanya perlu membeli nitro yang memiliki boost, dan kemudian kalian dapat boost server ini untuk menerima benefit yang ada.
+
+Benefit :
+Dapat post lebih cepat daripada member biasa yang tidak boost server, post hanya memiliki 10 menit cooldown.
+
+WARNING KERAS!
+Role ini hanyalah role member biasa yang berkontribusi dalam mem-boost server, jadi role ini hanyalah role biasa karena semua orang dapat mendapatkan role berikut hanya dengan membeli nitro, jadi tolong hati-hati untuk tidak langsung percaya saat melakukan transaksi, keep doing your own research! Diharapkan menggunakan jasa middleman yang kami sediakan di server, tax nya murah tidak bikin kalian resah. Lebih baik spare beberapa untuk menggunakan jasa middleman daripada terkena scam!
+
+BENEFIT NON AKTIF?
+Untuk menikmati benefit yang ada sebagai booster server ini, kalian perlu mengaktifkan 2FA atau Two Factor Authentication.
+
+BERIKUT CARA MENGAKTIFKAN 2FA
+Pergi ke User Settings > My Account >Authenticator App
+Kemudian ikuti langkah-langkah yang ada di dalam discord. Kalian dapat menggunakan authenticator dari google yang bisa di download di Play Store/ App Store.
+
+4. @Middleman
+Role ini adalah role khusus yang tidak bisa di dapatkan dengan cara apapun, Member yang memiliki role middleman sudah di verifikasi aman, karena di rekomendasikan oleh Owner sendiri! Identitas masing-masing middleman juga sudah di amankan oleh Owner yang merekomendasikan, jadi jika terjadi masalah scamming, orang yang merekomendasikan akan bertanggung jawab jika terjadi suatu masalah.
+
+Benefit :
+Dapat melayani jasa middleman di tempat yang sudah disediakan.
+Tax yang di dapatkan bukan untuk server, namun untuk personal.
+
+5. @Police / @Moderator
+Role ini adalah role yang diberikan kepada member yang ingin membantu jalannya server. Police dan Moderator dapat membantu melayani keluhan masalah di dalam server, silahkan tag member yang memiliki role tersebut. Police dan Moderator tidak digaji, mereka membantu jalannya server dengan cuma-cuma tanpa ada bayaran. Jadi tolong gunakan etika jika sedang menyelesaikan masalah dengan pengurus server!
+
+Benefit :
+Dapat melakukan mute, warn, ban kepada member sesuai aturan yang ada.
+Akses channel lebih leluasa dan nickname kalian berada di urutan atas bagian display member, jadi dapat digunakan untuk promosi server atau dagangan kalian sesuai kebutuhan masing-masing selama masih sesuai dengan rules yang ada.
+Lebih dikenal member-member lainnya, membantu memperbesar relasi dan koneksi yang ada. Gunakan dengan bijak!
+FAQ
+Q : Saya berminat ingin membantu jalannya server dengan mendaftar sebagai police / moderator, bagaimana caranya?
+A : Silahkan tunggu recruitment berikutnya.
+
+Q : Police / Moderator melakukan abuse kepada member, apakah mendapat hukuman?
+A : Pihak yang melakukan abuse akan mendapatkan sanksi yang tidak disebutkan sesuai dengan apa yang dilakukan.
+
+6. @gtid.dev
+Role ini adalah role pendiri server Growtopia Indonesia Discord, sudah dipastikan aman. Karena masing-masing pemegang role owner sudah lama melakukan transaksi dan mengurus discord server. Namun kembali ke masing-masing untuk trust atau tidaknya kepada role owner, terkecuali jika kalian ingin melakukan transaksi menggunakan middleman, kalian tidak perlu menggunakan jasa middleman karena yang merekomendasikan middleman yaitu owner itu sendiri.
+
+PENTING!
+Dimohon untuk tidak mention untuk keperluan yang tidak penting dengan manajemen server, karena owner tidak mengurus masalah yang ada dengan personal member, seperti masalah scam, clone, tricker, dsb. Silahkan hubungi moderator/police untuk masalah tersebut.
+
+7. @Maintenance Team
+Role ini adalah role bagian maintenance. Pemegang role ini memiliki hak khusus yaitu administrator, karena mereka yang melakukan bagian setting discord server ( Bot, Channel, dsb )
+
+Jika mendapatkan bug/masalah seiring berjalannya transaksi maupun non transaksi yang terjadi di karenakan masalah dari discord / bot / channel yang terjadi di dalam server GTID, Silahkan hubungin role maintenance!
+
+8. @Pengepul Gems
+Role ini adalah role untuk pembeli gems yang aktif tiap hari nya membeli pack di channel buy-sell-gems. Role berikut bisa di dapatkan dengan mudah selama kalian aktif membeli gems, kalian bisa meminta role tersebut dengan cara open tiket lapor dan meminta diberikan role pengepul gems.
+
+Benefit :
+Lebih dipercaya member daripada role biasa, karena memiliki sering membeli gems jadi menghindari adanya PHP/Troll.
+Lebih menarik penjual karena sudah lama dan aktif dalam membeli gems.
+
+9. @Verified Seller
+Role tersebut diatas member biasa, karena sudah terverifikasi menggunakan format yang kami gunakan, syarat ketentuan yakni :
+
+- Min reputasi di gtid 500.
+- Min join 1 tahun di gtid
+- Verifikasi store ( nnti di cek layak apa engga nya + ngehindarin store bodong )
+- Verifikasi ownership store
+
+Benefit :
+Transaksi lebih lancar karena role tersebut hanya bisa di dapatkan dengan syarat ketentuan tertentu, yakni membutuhkan reputasi tinggi.
+
+10. @Verified Scripter
+Role ini adalah role untuk scripter yang sudah terverifikasi dan dipilih langsung oleh owner. 
+
+
+
+
+NB : as usual, gtid tidak pernah merekomendasikan pihak mana pun, baik seller maupun buyer. Semua role disini di dapatkan melalui reputasi masing masing seller, jadi tetap do your own research!
+
+
+disclaimer: BEDAKAN ROLE DENGAN SEKSAMA YA!
+@PENGEPUL DL : ini role di cuma buat reseller dls yang terverifikasi, dipilih langsung oleh owner dengan beberapa aturan. karena role nya spesial gabisa di dapetin melalui syarat tertulis. Kedudukan nya lebih tinggi daripada verified seller, karena transaksi total & hariannya lumayan besar.
+Fungsi role pengepul dl apa?  : Menandakan kalau yang mempunyai role tersebut adalah reseller dls yang memiliki reputasi tinggi dari member member gtid berdasarkan transaksi nya disini.
+
+@Verified Seller : role ini bisa di dapatkan dengan syarat tertulis yang gw pernah tulis di announcement yaitu 500 reputasi, verifikasi store & ownership, WAJIB join gtid selama 1 tahun. Sisanya ada beberapa syarat yang bakal dijelasin di tiket.
+Fungsi role verified seller apa? : Menandakan bahwa orang tersebut sudah memiliki reputasi di atas seller lainnya di lingkup GTID, artinya seller tersebut sudah lama berjualan produk yang biasa dia jual dan mendapatkan reputasi penjualan produk nya dari buyer-buyernya.
+
+@Pengepul Akun : role ini khusus untuk reseller akun growtopia yang sudah terverifikasi langsung dari role @GTID.DEV , gabisa di hitung berdasarkan reputasi karena role tersebut menjual quality bukan quantity.
+Fungsi role pengepul akun apa? : Menandakan bahwa orang tersebut memiliki store yang sudah terverifikasi menjual akun growtopia dengan reputasi yang tinggi serta testimoni yang legit.
+
+Jadi kalau ngecek reputasi itu bukan berdasarkan angka nya, tapi apa yang dia jual, karena reputasi tiap role itu berbeda-beda nominal nya. Semisal kalian mau ngecek reputasi nya, kalian bisa ketik di search section di discord gtid.
+
+Format :
+mention : nama discordnya/ user ID <#1083724542373003334>
+contoh nya kaya gambar dibawah ini
+
+Semisal ingin bertransaksi, silahkan recheck kembali reputasi seller/buyer tersebut, karena gtid ga ngasih asuransi transaksi kalian disini. Thankyou
+@Growtopian
+

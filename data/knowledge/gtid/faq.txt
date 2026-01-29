@@ -1,0 +1,68 @@
+## 📋 Umum & Verifikasi
+
+**Apa itu GTID?**
+GTID adalah komunitas sekaligus marketplace di bidang game, khususnya Growtopia (Legal & Illegal), serta beberapa marketplace global lainnya.
+
+**Bagaimana cara melakukan verifikasi anggota baru?**
+
+1. Aktifkan fitur **"Allow Direct Message"** di pengaturan privasi Discord Anda.
+2. Buka channel <#1083715061723447326> dan klik tombol **"Verify"**.
+3. Bot Double Counter akan mengirim pesan (DM); klik tombol **"Click me to verify"**.
+4. Jika mengalami kendala seperti "VPN Detected", gunakan koneksi **mobile data**.
+5. cara memberi reputasi kepada penjual/pembeli yang kamu trust adalah dengan cara ke channel <#1083724542373003334> ketik 
++rep untuk memberi rep
+-rep untuk mengecek rep
+-toprep untuk mengecek list leaderboard
+
+**Apa syarat untuk bisa promosi di Marketplace?**
+Anda harus menyelesaikan verifikasi pertama (Double Counter) dan akun Discord Anda minimal sudah bergabung di server GTID selama **1 bulan**.
+
+---
+
+## ⚖️ Peraturan & Sanksi
+
+**Apa saja larangan utama dalam beriklan?**
+
+* Dilarang menggunakan *self-bot* atau *auto-posting* (Sanksi: **BANNED**).
+* Dilarang menjual item ilegal seperti hasil *carding* atau *scam* (Sanksi: **BANNED**).
+* Dilarang menjual/membeli/berbagi *Method* atau *Trial Items* (Sanksi: **BANNED**).
+* Dilarang mempromosikan barang yang stoknya kosong (**0**).
+* Dilarang menggunakan teks besar (seperti `# teks`) karena mengganggu.
+
+**Bagaimana sistem hukuman (Warn) di GTID?**
+Setiap pelanggaran akan berakibat pada poin peringatan (*warn*) dengan sanksi sebagai berikut:
+
+* **1 Warn:** Mute 1 Hari
+* **3 Warn:** Mute 5 Hari
+* **6 Warn:** Ban 1 Bulan
+* **7 Warn:** Ban Permanen
+
+---
+
+## 💎 Peran (Roles) & Benefit
+
+**Siapa itu Middleman dan apakah mereka aman?**
+Role **@Middleman** dipilih dan diverifikasi langsung oleh Owner. Identitas mereka diamankan oleh pihak Owner, sehingga jika terjadi *scamming* oleh Middleman, pihak yang merekomendasikan akan bertanggung jawab. Sangat disarankan menggunakan jasa mereka untuk menghindari penipuan.
+
+**Apa perbedaan Verified Seller dan Pengepul DL?**
+
+* 
+**Verified Seller:** Membutuhkan minimal 500 reputasi, bergabung minimal 1 tahun, dan verifikasi kepemilikan toko.
+* **Pengepul DL:** Role khusus untuk reseller dengan reputasi di atas rata-rata yang dipilih langsung oleh Owner. Kedudukannya lebih tinggi dari Verified Seller.
+
+**Bagaimana cara mendapatkan role Pengepul Pack atau Gems?**
+Anda bisa mendapatkannya jika aktif membeli Pack/Gems setiap hari dengan cara membuka **tiket laporan** untuk meminta role tersebut kepada staf.
+
+---
+
+## 🛡️ Keamanan Transaksi
+
+**Bagaimana cara menghindari penipuan "Clone" saat transaksi?**
+Pada channel jual beli DL <#1083704905035952210>, terdapat bot yang menyediakan tombol react gambar. Klik react tersebut untuk membuat **Private Thread otomatis** guna menghindari akun kloningan yang berpura-pura menjadi penjual/pembeli.
+
+**Mengapa server GTID yang lama di-terminate oleh Discord?**
+Server lama terkena *terminate* pada 10 Maret 2023 karena melanggar aturan Discord terkait **Doxing**, yaitu menyebarkan data pribadi scammer (nomor HP, KTP, KK) di channel DATA-SCAMMER.
+
+---
+
+**Apakah ada hal spesifik lainnya yang ingin Anda ketahui, seperti cara melaporkan kecurangan atau aturan khusus Booster?**

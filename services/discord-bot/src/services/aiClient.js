@@ -54,9 +54,9 @@ let isSyncingPending = false;
  */
 async function refreshTunnelUrl() {
     if (!TUNNEL_URL_GIST) return;
-    
+
     try {
-        const response = await fetch(TUNNEL_URL_GIST, { 
+        const response = await fetch(TUNNEL_URL_GIST, {
             headers: { 'Cache-Control': 'no-cache' }
         });
         if (response.ok) {
@@ -148,7 +148,7 @@ function addToPendingQueue(logData) {
         // Remove oldest entries
         pendingLogs = pendingLogs.slice(-MAX_PENDING + 100);
     }
-    
+
     pendingLogs.push({
         ...logData,
         queuedAt: new Date().toISOString()
@@ -163,19 +163,19 @@ async function syncPendingLogs() {
     if (!localEngineConnected || pendingLogs.length === 0 || isSyncingPending) {
         return;
     }
-    
+
     isSyncingPending = true;
     const toSync = [...pendingLogs];
     let synced = 0;
     let failed = 0;
-    
+
     logger.info(`📤 Syncing ${toSync.length} pending logs to AI Engine...`);
-    
+
     for (const logData of toSync) {
         try {
             const headers = { 'Content-Type': 'application/json' };
             if (AI_API_KEY) headers['X-API-Key'] = AI_API_KEY;
-            
+
             const response = await fetchWithTimeout(
                 `${AI_ENGINE_URL}/log`,
                 {
@@ -185,7 +185,7 @@ async function syncPendingLogs() {
                 },
                 5000 // 5 second timeout per log
             );
-            
+
             if (response.ok) {
                 synced++;
                 // Remove from pending queue
@@ -201,14 +201,14 @@ async function syncPendingLogs() {
             // If connection lost during sync, stop
             if (!localEngineConnected) break;
         }
-        
+
         // Small delay to not overwhelm the server
         await new Promise(r => setTimeout(r, 50));
     }
-    
+
     savePendingLogs();
     isSyncingPending = false;
-    
+
     if (synced > 0) {
         logger.info(`✅ Synced ${synced} pending logs (${failed} failed, ${pendingLogs.length} remaining)`);
     }
@@ -243,9 +243,9 @@ async function checkLocalHealth() {
                 HEALTH_TIMEOUT
             );
         }
-        
+
         const wasConnected = localEngineConnected;
-        
+
         if (response.ok) {
             const data = await response.json();
             // /ping just returns {status: "ok"}, /health returns detailed info
@@ -253,7 +253,7 @@ async function checkLocalHealth() {
         } else {
             localEngineConnected = false;
         }
-        
+
         lastHealthCheck = new Date();
 
         // Log status changes
@@ -302,10 +302,10 @@ async function chatLocal(message, userId = null, context = {}) {
         {
             method: 'POST',
             headers,
-            body: JSON.stringify({ 
-                message, 
+            body: JSON.stringify({
+                message,
                 user: userId,  // Pass user ID for per-user context isolation
-                context 
+                context
             }),
         },
         REQUEST_TIMEOUT
@@ -343,13 +343,13 @@ async function sendLogToLocal(logData) {
             },
             5000 // 5 second timeout
         );
-        
+
         if (!response.ok) {
             // Failed - queue for retry
             addToPendingQueue(logData);
             return false;
         }
-        
+
         return true;
     } catch (error) {
         // Network error - queue for retry
@@ -359,26 +359,50 @@ async function sendLogToLocal(logData) {
 }
 
 // ============================================
-// OpenAI Fallback
+// OpenAI Fallback with Personality + RAG
 // ============================================
 
+const { getPersonality } = require('../config/personalities');
+const ragService = require('./ragService');
+
 /**
- * Chat with OpenAI API
+ * Chat with OpenAI API using personality and RAG context
+ * @param {string} message - User message
+ * @param {object} context - { guildId, username, userId }
  */
 async function chatOpenAI(message, context = {}) {
     if (!OPENAI_API_KEY) {
         throw new Error('OpenAI API key not configured');
     }
 
-    const systemPrompt = `Kamu adalah Ezra, asisten Discord bot yang ramah, lucu, dan suka bercanda.
-Jawab dengan santai, fun, dan friendly. Boleh pakai emoji sesekali 😄
-Balas dengan bahasa yang sama dengan user (Indonesia/English).`;
+    // Get personality for this guild
+    const personality = getPersonality(context.guildId);
 
+    // Search RAG for relevant context
+    let ragContext = '';
+    try {
+        const results = await ragService.search(message, personality.knowledgeBase, 5);
+        if (results.length > 0) {
+            ragContext = results.map(r => r.content).join('\n---\n');
+        }
+    } catch (error) {
+        logger.debug('RAG search failed', { error: error.message });
+    }
+
+    // Build messages with personality + RAG context
     const messages = [
-        { role: 'system', content: systemPrompt }
+        { role: 'system', content: personality.systemPrompt }
     ];
 
-    // Add user context
+    // Add RAG context if available
+    if (ragContext) {
+        messages.push({
+            role: 'system',
+            content: `CONTEXT (gunakan untuk menjawab):\n${ragContext}`
+        });
+    }
+
+    // Add user info
     if (context.username) {
         messages.push({
             role: 'system',
@@ -399,7 +423,7 @@ Balas dengan bahasa yang sama dengan user (Indonesia/English).`;
             body: JSON.stringify({
                 model: OPENAI_MODEL,
                 messages,
-                temperature: 0.8,
+                temperature: personality.allowProfanity ? 0.9 : 0.7,
                 max_tokens: 500,
             }),
         },
@@ -441,8 +465,8 @@ function startHealthChecks() {
 
     // Periodic health checks
     healthCheckTimer = setInterval(checkLocalHealth, HEALTH_CHECK_INTERVAL);
-    
-    logger.info('🔄 AI health checks started', { 
+
+    logger.info('🔄 AI health checks started', {
         localUrl: AI_ENGINE_URL,
         hasOpenAIKey: !!OPENAI_API_KEY,
         interval: HEALTH_CHECK_INTERVAL,
@@ -474,15 +498,15 @@ async function chat(message, context = {}) {
     // Extract user ID for per-user context isolation
     // Support both 'user' and 'userId' field names
     const userId = context.userId || context.user || null;
-    
+
     // Try Local AI Engine first
     if (localEngineConnected) {
         try {
             const response = await chatLocal(message, userId, context);
-            return { 
-                success: true, 
-                response, 
-                provider: 'gemma-3n-e4b' 
+            return {
+                success: true,
+                response,
+                provider: 'gemma-3n-e4b'
             };
         } catch (error) {
             logger.warn('Local AI failed, trying OpenAI fallback', { error: error.message });
@@ -494,15 +518,15 @@ async function chat(message, context = {}) {
     if (OPENAI_API_KEY) {
         try {
             const response = await chatOpenAI(message, context);
-            return { 
-                success: true, 
-                response, 
-                provider: 'gpt-3.5-turbo' 
+            return {
+                success: true,
+                response,
+                provider: 'gpt-3.5-turbo'
             };
         } catch (error) {
             logger.error('OpenAI fallback failed', { error: error.message });
-            return { 
-                success: false, 
+            return {
+                success: false,
                 error: error.message,
                 provider: 'gpt-3.5-turbo'
             };
@@ -510,8 +534,8 @@ async function chat(message, context = {}) {
     }
 
     // No provider available
-    return { 
-        success: false, 
+    return {
+        success: false,
         error: 'No AI provider available (Local offline, no OpenAI key)',
         provider: 'none'
     };

@@ -55,8 +55,8 @@ function extractAIQuery(content) {
 async function processAIChat(message, query, isDMChannel = false) {
     // Check if there's actually a question
     if (!query || query.length < 2) {
-        return message.reply(isDMChannel 
-            ? 'Halo! Langsung aja tanya, gak perlu pake "zra" di DM 😊' 
+        return message.reply(isDMChannel
+            ? 'Halo! Langsung aja tanya, gak perlu pake "zra" di DM 😊'
             : 'Halo! Ada yang bisa kubantu? 😊'
         );
     }
@@ -68,6 +68,7 @@ async function processAIChat(message, query, isDMChannel = false) {
     const result = await aiClient.chat(query, {
         username: message.author.username,
         userId: message.author.id,
+        guildId: message.guild?.id || 'DM', // For personality detection
         serverId: message.guild?.id || 'DM',
         serverName: message.guild?.name || 'Direct Message',
         channelId: message.channel.id,
@@ -116,15 +117,15 @@ async function handleMessage(message) {
         if (isDM(message)) {
             // In DMs, respond to everything (no prefix needed)
             const query = message.content.trim();
-            
+
             // Strip prefix if they still use it in DM
             const cleanQuery = isAIMessage(query) ? extractAIQuery(query) : query;
-            
+
             logger.debug('DM received', {
                 user: message.author.tag,
                 query: cleanQuery.substring(0, 50)
             });
-            
+
             return await processAIChat(message, cleanQuery, true);
         }
 

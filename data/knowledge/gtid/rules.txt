@@ -1,0 +1,104 @@
+Peraturan di GTID:
+1. member baru wajib melakukan double counter verifikasi, tutorial verifikasi ada di channel <#1083715037375516742>
+2. Profile Rules
+
+Kami memperbolehkan member untuk memasang link server kalian untuk kebutuhan transaksi, dengan syarat memasang link back di bio kalian.
+
+HARAP PASANG LINK BIO DI PROFIL UTAMA DAN BUKAN DI SERVER PROFIL GTID JIKA KETAHUAN AKAN DIKENAKAN SANKSI MUTE/BANNED
+contoh/example:
+Join My Store :
+My server : https://dxxx.gg/asodiasn
+GTID: https://discord.gg/GTID
+
+3. Warning & Punishment System
+
+Setiap pelanggaran yang dilakukan oleh member, akan terkena warn, setiap warn ada punishmentnya.
+PUNISHMENT
+1 Warn = 1 Hari Mute
+2 Warn = 3 Hari Mute
+3 Warn = 5 Hari Mute
+4 Warn = 1 Minggu Mute
+5 Warn = 2 Minggu Mute
+6 Warn = 1 Bulan Ban
+7 Warn = Ban Permanent
+
+4. Posting / Advertising Rules
+
+Max 7 Lines Promote (except for a few channel, make sure you check every pin buy-sell channel because every channel has different rules sometimes. )
+Don't stack messages, If your message is already at the bottom, you can't post even if the cooldown is over. Example : https://postimg.cc/SXPZn3X8
+Illegal Items are not allowed here ( Carding, Scam Item, Etc. ) , Caught = BANNABLE
+No Fake Price!
+No Auto Posting ( Self-botting ) since its not allowed by Discord TOS, Caught = BANNABLE
+No Discussing in Buy-Sell Channel. Please discuss in general chat.
+No Method Selling / Buying / Sharing , Caught = BANNABLE
+No Trial Items Selling since its not allowed by Discord TOS. You can still advertise in GTID Alter.
+Dont Post When Your items Is SOLD If Caught = BANNED same with AUTO POST
+also dont even post using photo/gif (except for a few channel can check in pin buy-sell channel)
+Dilarang menggunakan text besar untuk promosi, karena mengganggu dan pemborosan tempat, text seperti `# test`
+WHEN YOUR STOCK IS 0 (ZERO) IF STILL POST THEN CAUGHT BY MEMBER/ADMIN U WILL GET BANNED 
+BECAUSE YOUR STOCK IS 0 (ZERO) SO WHY U POST? IS SAME WITH AUTO POST 
+SO DONT POST WHEN DONT HAVE STOCK
+
+jangan ada OOT di semua channel yang mempunyai cooldown dan memiliki tujuan untuk promosi, chat buyer/seller asli tertutup karena kamu OOT hargai buyer/seller
+
+DO NOT engage in OOT (Out Of Topic) discussions in all channels that have a cooldown and are created for promotional purposes. Genuine buyer/seller chats are blocked if you go off-topic. Respect other buyers and sellers
+
+Khusus untuk channel buy sell dl <#1083704905035952210>, pihak GTID menerapkan peraturan minimal rate, untuk menjaga harga Diamond Lock agar tetap stabil. selengkapnya bisa cek di pin channel tersebut. 
+
+untuk channel <#1324054014228303894> 
+karena semakin maraknya orang" yang report / terdeteksi /terkena limit fraud oleh discord, mohon ganti text promosi kalian agar lebih aman. jangan mengganti singkatan karena masih bisa terdeteksi. 
+
+cth: 
+Apple jadi Buah
+Gmail jadi Surat
+etc... 
+
+buat sekreatif mungkin jangan pakai Epel/Jimel, karena sudah banyak yang terkena mute/limit dari discord langsung 
+
+Dari pihak GTID telah membuat bot pada channel <#1083704905035952210> untuk mencegah terjadinya clone yang berupa tombol react berupa gambar dibawah yang fungsinya MEMBUAT PRIVATE THREAD OTOMATIS yang akan terbuat di <#1252864295595806811> 
+jadi jika kalian ingin membeli/menjual DL kepada pembuat post dan takut terkena clone tekan saja react pada post orang tersebut
+
+RULES HARGA KHUSUS CHANNEL BUY & SELL DL
+terdapat perubahan aturan harga untuk semua pengepul & reseller. Aturan lain tetap sama seperti sebelumnya, kecuali bagian berikut:
+Harga SELL mengikuti format baru
+Format baru: Buy 10 → Sell 50
+Contoh:
+Buy 220 → Sell 250
+Buy 240 → Sell 250
+
+Terima kasih atas kerja samanya menjaga stabilitas harga.
+Aturan lain di server tetap sama dan tidak berubah.
+
+5. Booster Rules
+
+NO VISUAL BIO, i.e Link back and your store link is only visible in GTID Server. We wil BAN whoever using visual linkback no matter what reason.
+DO NOT POST BEFORE 10 MINS AFTER YOU POSTING, OR GET MUTED
+Don't use your booster perks for changing nickname to the top, just like ! AL, ! A, ! aaJamal etc. , Caught? Mute 3 Days
+NO ALT BOOSTING. Why? it help server having more boost. We have tons booster here, we aren't begging everyone else to boost, i know what you do with it. Alt Boosting mean Alt Passive Advertise, Put your alt on top with "!" nickname, and put status on it. We'll check your server if we caught someone who try to Alt Boosting.
+Do not hide your real username with Server Nickname with Booster Perks.
+
+6. Nickname Rules
+ Max Space between nickname and "!" only 1. If you put more than 1 space will be subject to mute sanctions until changing the nickname.
+No Advertise nickname with "A" alphabet or "A" words combination with your nickname, we don't care what your reason i know what you doing with it.
+In Example :
+! a
+! aL
+! a JametStore
+! aaTest
+! AAATest
+! Abang Satria
+! Ahmad ( But your real username / real name wasn't ahmad. LOL )
+Don't Put your Store Name on Username.
+No Advertise Product on your Nickname.
+Don't Put your Role or whatever in GTID, Like hoster in blablabla, Admin in Blbalbaa.
+Don't advertise yourself as product seller on your nickname, example : RDP SELLER, AZURE SELLER, DL SELLER.
+
+7. Report Rules
+ada beberapa tempat untuk melaporkan kecurangan, indikasi scam, atau kecurangan lainnya, <#1085242488308105347> untuk laporan berkepanjangan (status masih tergantung), <#1083711750295277589> untuk laporan langsung, dan <#1083727024230776842> untuk laporan anonim menggunakan channel tiket. 
+
+8. Reputation Rules
+Tolong Kalo Rep di kasi keterangan untuk menghindari GB Rep. Rep di sini Khusus untuk transaksi yang di lakukan di market GTiD. Jika Ada middleman Saat transaksi, tidak usah di Rep karna ada pihak ke 3. Rep hanya di lakukan untuk transaksi sistem trust me. Di luar itu tidak boleh. Rep di lakukan pada saat transaksi telah selesai di lakukan. Jangan coba-coba untuk melakukan GB Rep atau pelanggaran yang lainnya, walaupun bercanda, tetap akan di ban
+
++rep untuk memberi rep
+-rep untuk mengecek rep
+-toprep untuk mengecek list leaderboard

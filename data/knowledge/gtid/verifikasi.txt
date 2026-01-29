@@ -1,0 +1,34 @@
+Cara Verifikasi Di GTID
+1. Pastikan kalian sudah mengaktifkan "Allow Direct Message" , settingan ini bisa ditemukan dengan menekan banner server GTID lalu scroll kebawah
+2. Setelah itu kalian bisa me channel <#1083715061723447326> dan klik tombol "Verify"
+3. <@703886990948565003> akan mengirim embed message kepada kalian, lalu klik tombol biru "Click me to verify"
+
+NOTE
+<@703886990948565003> berfungsi untuk menangkal alt account / akun kedua, jadi kalian hanya diperbolehkan menggunakan 1 akun di server GTID
+Sedikit Informasi
+Jika kalian mengalami masalah ketika verifikasi seperti VPN DETECTED, silahkan gunakan mobile data
+
+link tutorial double counter verifikasi : https://www.tiktok.com/@sangpalawan/video/7427059797918338311
+
+Verifikasi kedua untuk bisa promosi di marketplace
+1. Perlu menyelesaikan verifikasi pertama double counter.
+2. Perlu memiliki akun discord yang sudah join GTID selama 1 bulan.
+3. Ke channel <#1325558641088266291> dan klik tombol "Verify"
+
+Untuk mengakses semua channel, kalian perlu ke channel <#1083709598248218755> untuk select role, lalu pencet role apa saja yang kalian ingin miliki.
+
+Roles Catalog:
+Silahkan pilih roles sesuai dengan keinginan kamu untuk mengakses channel yang tersedia berdasarkan kategori dibawah sini
+
+💬 | CHAT  Akses kategori chat 
+🛠️ | SERVICE  Akses kategori service 
+💸 | ILEGAL  Akses kategori ilegal 
+💎 | LEGAL  Akses kategori legal 
+🎶 | MUSIC  Akses kategori music 
+🎮 | MABAR  Akses kategori mabar 
+🤖 | BOT CHANNEL  Akses kategori bot channel 
+
+🎁 | Giveaway Hunter  Mendapatkan role ping giveaway 
+🔔 | Ban Wave  Mendapatkan role ping ban wave 
+🔔 | Crash / Maintenance  Mendapatkan role ping crash / maintenance 
+🔔 | Mod Notification  Mendapatkan role ping jika mod on/off 

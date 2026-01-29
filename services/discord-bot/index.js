@@ -14,6 +14,7 @@ const { env } = require('./src/config');
 const { logger } = require('./src/middleware');
 const handleMessage = require('./src/handlers/handleMessage');
 const aiClient = require('./src/services/aiClient');
+const ragService = require('./src/services/ragService');
 const { slashCommands, deploySlashCommands } = require('./src/slashCommands');
 
 // ============================================
@@ -45,11 +46,6 @@ const bot = new Client({
 
 // Activities (Playing xxx)
 const activities = [
-    { name: 'with your mind 🧠', type: ActivityType.Playing },
-    { name: 'your questions', type: ActivityType.Listening },
-    { name: 'with AI magic ✨', type: ActivityType.Playing },
-    { name: 'zra <pertanyaan>', type: ActivityType.Watching },
-    { name: '!khodam @user', type: ActivityType.Watching },
 ];
 
 // Custom statuses (rotating)
@@ -61,7 +57,6 @@ const customStatuses = [
     '🤫 Your secrets are safe with me',
     '💭 Curhat? DM aja!',
     '🎯 Try: zra apa kabar?',
-    '🧠 Powered by RAG memory',
 ];
 
 let activityIndex = 0;
@@ -80,12 +75,12 @@ function rotatePresence() {
             },
         ],
     });
-    
+
     // Also set activity separately for "Playing/Watching" display
     bot.user.setActivity(activities[activityIndex].name, {
         type: activities[activityIndex].type,
     });
-    
+
     // Rotate independently (different array lengths = different cycles)
     activityIndex = (activityIndex + 1) % activities.length;
     statusIndex = (statusIndex + 1) % customStatuses.length;
@@ -105,6 +100,14 @@ bot.on('ready', async () => {
         logger.info('Slash commands deployed globally');
     } catch (error) {
         logger.error('Failed to deploy slash commands', { error: error.message });
+    }
+
+    // Initialize RAG service (load embeddings)
+    try {
+        await ragService.initialize();
+        logger.info('RAG service initialized', ragService.getStatus());
+    } catch (error) {
+        logger.warn('RAG service initialization failed (will work without RAG)', { error: error.message });
     }
 
     // Start AI health checks
