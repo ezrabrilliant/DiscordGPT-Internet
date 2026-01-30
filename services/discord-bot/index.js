@@ -64,17 +64,6 @@ let statusIndex = 0;
 
 function rotatePresence() {
     // Set both activity AND custom status simultaneously
-    bot.user.setPresence({
-        status: 'online',
-        activities: [
-            // Custom status (shows in profile & hover)
-            {
-                type: ActivityType.Custom,
-                name: 'Custom Status',
-                state: customStatuses[statusIndex],
-            },
-        ],
-    });
 
     // Also set activity separately for "Playing/Watching" display
     bot.user.setActivity(activities[activityIndex].name, {

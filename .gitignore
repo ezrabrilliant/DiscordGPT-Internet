@@ -80,9 +80,12 @@ secrets/
 data/knowledge/musless/
 **/musless/
 **/personalities.local.js
-services/ai-engine/data/chromadb/chroma.sqlite3
-services/ai-engine/data/chromadb/chroma.sqlite3
-data/chromadb/chroma.sqlite3
-services/ai-engine/data/chromadb/chroma.sqlite3
-services/ai-engine/data/chromadb/chroma.sqlite3
+
+# ChromaDB
+data/chromadb/
+services/ai-engine/data/chromadb/
+
+# Conversations & Embeddings (large files, can be regenerated)
+services/discord-bot/data/conversations/
+services/discord-bot/data/embeddings/
 *.zip

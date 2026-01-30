@@ -1,41 +1,40 @@
 /**
  * Gemini Client Service
- * Handles embedding using Google Gemini API
+ * Uses official @google/genai SDK for text embeddings
+ * Model: gemini-embedding-001
  */
 
+const { GoogleGenAI } = require('@google/genai');
 const { logger } = require('../middleware');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const EMBEDDING_MODEL = 'text-embedding-004';
-const EMBEDDING_URL = `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:embedContent`;
+const EMBEDDING_MODEL = 'gemini-embedding-001';
+
+// Initialize client
+let ai = null;
+if (GEMINI_API_KEY) {
+    ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+}
 
 /**
- * Generate embedding for text using Gemini API
+ * Generate embedding for text (for search queries)
+ * Uses RETRIEVAL_QUERY taskType for better search results
  * @param {string} text - Text to embed
  * @returns {Promise<number[]>} - Embedding vector
  */
 async function embed(text) {
-    if (!GEMINI_API_KEY) {
+    if (!ai) {
         throw new Error('GEMINI_API_KEY not configured');
     }
 
     try {
-        const response = await fetch(`${EMBEDDING_URL}?key=${GEMINI_API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: `models/${EMBEDDING_MODEL}`,
-                content: { parts: [{ text }] }
-            })
+        const response = await ai.models.embedContent({
+            model: EMBEDDING_MODEL,
+            contents: text,
+            taskType: 'RETRIEVAL_QUERY'
         });
 
-        if (!response.ok) {
-            const error = await response.text();
-            throw new Error(`Gemini API error: ${response.status} - ${error}`);
-        }
-
-        const data = await response.json();
-        return data.embedding.values;
+        return response.embeddings[0].values;
     } catch (error) {
         logger.error('Gemini embedding failed', { error: error.message });
         throw error;
@@ -43,38 +42,59 @@ async function embed(text) {
 }
 
 /**
- * Batch embed multiple texts
+ * Generate embedding for document content
+ * Uses RETRIEVAL_DOCUMENT taskType for indexing
+ * @param {string} text - Document text to embed
+ * @returns {Promise<number[]>} - Embedding vector
+ */
+async function embedDocument(text) {
+    if (!ai) {
+        throw new Error('GEMINI_API_KEY not configured');
+    }
+
+    try {
+        const response = await ai.models.embedContent({
+            model: EMBEDDING_MODEL,
+            contents: text.slice(0, 10000), // Max 10k chars
+            taskType: 'RETRIEVAL_DOCUMENT'
+        });
+
+        return response.embeddings[0].values;
+    } catch (error) {
+        logger.error('Gemini document embedding failed', { error: error.message });
+        throw error;
+    }
+}
+
+/**
+ * Batch embed multiple documents
  * @param {string[]} texts - Array of texts to embed
  * @returns {Promise<number[][]>} - Array of embedding vectors
  */
 async function embedBatch(texts) {
-    if (!GEMINI_API_KEY) {
+    if (!ai) {
         throw new Error('GEMINI_API_KEY not configured');
     }
 
-    const results = [];
-    // Process in batches of 100 (API limit)
-    const batchSize = 100;
+    try {
+        const response = await ai.models.embedContent({
+            model: EMBEDDING_MODEL,
+            contents: texts.map(t => t.slice(0, 10000)),
+            taskType: 'RETRIEVAL_DOCUMENT'
+        });
 
-    for (let i = 0; i < texts.length; i += batchSize) {
-        const batch = texts.slice(i, i + batchSize);
-        const embeddings = await Promise.all(batch.map(text => embed(text)));
-        results.push(...embeddings);
-
-        // Small delay between batches
-        if (i + batchSize < texts.length) {
-            await new Promise(r => setTimeout(r, 100));
-        }
+        return response.embeddings.map(e => e.values);
+    } catch (error) {
+        logger.error('Gemini batch embedding failed', { error: error.message });
+        throw error;
     }
-
-    return results;
 }
 
 /**
  * Calculate cosine similarity between two vectors
  */
 function cosineSimilarity(a, b) {
-    if (a.length !== b.length) return 0;
+    if (!a || !b || a.length !== b.length) return 0;
 
     let dotProduct = 0;
     let normA = 0;
@@ -86,6 +106,8 @@ function cosineSimilarity(a, b) {
         normB += b[i] * b[i];
     }
 
+    if (normA === 0 || normB === 0) return 0;
+
     return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
@@ -93,10 +115,9 @@ function cosineSimilarity(a, b) {
  * Check if Gemini API is available
  */
 async function isAvailable() {
-    if (!GEMINI_API_KEY) return false;
+    if (!ai) return false;
 
     try {
-        // Quick test with minimal text
         await embed('test');
         return true;
     } catch {
@@ -106,6 +127,7 @@ async function isAvailable() {
 
 module.exports = {
     embed,
+    embedDocument,
     embedBatch,
     cosineSimilarity,
     isAvailable,

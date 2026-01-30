@@ -145,9 +145,16 @@ async function search(query, knowledgeBase = 'general', k = 5) {
     const index = knowledgeIndex[knowledgeBase];
 
     if (!index || !index.chunks || index.chunks.length === 0) {
-        logger.debug(`No index found for ${knowledgeBase}`);
+        logger.debug(`RAG: No index found for ${knowledgeBase}`, {
+            availableBases: Object.keys(knowledgeIndex)
+        });
         return [];
     }
+
+    logger.debug(`RAG: Searching ${knowledgeBase}`, {
+        query: query.slice(0, 50),
+        chunksCount: index.chunks.length
+    });
 
     // Get query embedding
     const queryEmbedding = await gemini.embed(query);
@@ -161,7 +168,14 @@ async function search(query, knowledgeBase = 'general', k = 5) {
 
     // Sort by similarity and return top k
     results.sort((a, b) => b.score - a.score);
-    return results.slice(0, k);
+
+    const topResults = results.slice(0, k);
+    logger.debug(`RAG: Found ${topResults.length} results`, {
+        topScore: topResults[0]?.score?.toFixed(3),
+        source: topResults[0]?.source
+    });
+
+    return topResults;
 }
 
 /**

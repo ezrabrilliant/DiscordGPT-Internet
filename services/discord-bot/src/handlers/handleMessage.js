@@ -155,7 +155,24 @@ async function handleMessage(message) {
             return;
         }
 
-        // Layer 5: AI Chat in server (requires prefix: zra, ezra)
+        // Layer 5: GTID Help Channel - respond without prefix
+        // Channel khusus untuk member baru bertanya
+        const GTID_HELP_CHANNEL = '1084384617605382184';
+        if (message.channel.id === GTID_HELP_CHANNEL) {
+            const query = message.content.trim();
+
+            // Ignore if it's a command or too short
+            if (query.startsWith(PREFIX) || query.length < 3) return;
+
+            logger.debug('GTID Help Channel message', {
+                user: message.author.tag,
+                query: query.substring(0, 50)
+            });
+
+            return await processAIChat(message, query, false);
+        }
+
+        // Layer 6: AI Chat in server (requires prefix: zra, ezra)
         if (isAIMessage(message.content)) {
             const query = extractAIQuery(message.content);
             return await processAIChat(message, query, false);
