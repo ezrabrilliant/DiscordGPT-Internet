@@ -28,7 +28,7 @@ module.exports = {
     // OpenAI (fallback when local AI is offline)
     API_KEY: process.env.API_KEY || null,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY || process.env.API_KEY || null,
-    OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-3.5-turbo',
+    OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-4.1-nano',
 
     // Local AI Engine (your PC via tunnel)
     AI_ENGINE_URL: process.env.AI_ENGINE_URL || 'http://localhost:8000',

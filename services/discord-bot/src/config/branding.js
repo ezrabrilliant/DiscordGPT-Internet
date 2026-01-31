@@ -15,7 +15,7 @@ const BOT_NAME = "Ezra's";
 // Model names for display
 const MODELS = {
     local: 'gemma-3n-e4b',
-    openai: 'gpt-3.5-turbo',
+    openai: 'gpt-4.1-nano',
     fallback: 'AI',
 };
 

@@ -16,7 +16,7 @@ const path = require('path');
 // ============================================
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.API_KEY || '';
-const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4.1-nano';
 const OPENAI_TIMEOUT = 90000; // 90 seconds
 
 // Log file path
@@ -144,6 +144,116 @@ async function chatOpenAI(message, context = {}) {
 }
 
 // ============================================
+// Response Sanitizer (Anti-Exploit)
+// ============================================
+
+// Playful responses when exploit detected
+const EXPLOIT_RESPONSES = {
+    everyone: [
+        "Hayo mau ngetag tag everyone? No no no~ 😏",
+        "Eits, ketahuan mau spam tag everyone ya? Nice try! 😹",
+        "Yah, aku gabisa ngetag tag everyone. Mau ngapain emang? 🤨",
+    ],
+    role: [
+        "Hayo mau ngetag role? Gabisa dong~ 😏",
+        "Nice try! Aku gabisa mention role 😹",
+        "Mau spam role? gabisa dong wleee! 🙅",
+    ],
+    user: [
+        "Hayo mau ngetag orang? Gabisa dong~ 😏",
+        "Nice try! Aku gabisa mention user 😹",
+        "Mau tag orang? Nope! 🙅",
+    ],
+    invite: [
+        "Hayo mau nyebar invite link? Gabisa dong~ 😏",
+        "Nice try! Aku gabisa kirim invite link 😹",
+        "Mau spam server lain? Nope! 🙅",
+    ],
+    link: [
+        "Hmm, link mencurigakan? Skip aja deh~ 😅",
+        "Link aneh nih, ga aku kirim ya! 🚫",
+    ]
+};
+
+/**
+ * Pick random response from array
+ */
+function randomResponse(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/**
+ * Sanitize AI response to prevent exploits
+ * Filters: @everyone, @here, Discord invites, suspicious links
+ * Returns object with sanitized text and exploit info
+ */
+function sanitizeResponse(text) {
+    if (!text) return { text, exploitDetected: false };
+
+    let sanitized = text;
+    let exploitType = null;
+
+    // 1. Check for @everyone and @here
+    if (/@everyone/gi.test(sanitized) || /@\s*everyone/gi.test(sanitized)) {
+        exploitType = 'everyone';
+        sanitized = sanitized.replace(/@everyone/gi, '[everyone]');
+        sanitized = sanitized.replace(/@\s*everyone/gi, '[everyone]');
+    }
+    if (/@here/gi.test(sanitized) || /@\s*here/gi.test(sanitized)) {
+        exploitType = 'everyone';
+        sanitized = sanitized.replace(/@here/gi, '[here]');
+        sanitized = sanitized.replace(/@\s*here/gi, '[here]');
+    }
+
+    // 2. Check for role mentions (<@&ID>) - including split attempts
+    if (/<@&\d+>/gi.test(sanitized) || /<\s*@\s*&\s*\d+\s*>/gi.test(sanitized)) {
+        exploitType = 'role';
+        sanitized = sanitized.replace(/<@&\d+>/gi, '[role]');
+        sanitized = sanitized.replace(/<\s*@\s*&\s*\d+\s*>/gi, '[role]');
+    }
+
+    // 3. Check for user mentions (<@ID>) - NOT role (no &)
+    // Pattern: <@123456789> or < @ 123456789 >
+    if (/<@!?\d+>/gi.test(sanitized) || /<\s*@\s*!?\s*\d+\s*>/gi.test(sanitized)) {
+        exploitType = 'user';
+        sanitized = sanitized.replace(/<@!?\d+>/gi, '[user]');
+        sanitized = sanitized.replace(/<\s*@\s*!?\s*\d+\s*>/gi, '[user]');
+    }
+
+    // 2. Check for Discord invite links
+    if (/discord\.(gg|com\/invite|app\.com\/invite)\/[a-zA-Z0-9]+/gi.test(sanitized)) {
+        exploitType = 'invite';
+        sanitized = sanitized.replace(/discord\.gg\/[a-zA-Z0-9]+/gi, '[invite removed]');
+        sanitized = sanitized.replace(/discord\.com\/invite\/[a-zA-Z0-9]+/gi, '[invite removed]');
+        sanitized = sanitized.replace(/discordapp\.com\/invite\/[a-zA-Z0-9]+/gi, '[invite removed]');
+    }
+
+    // 3. Check for suspicious shortened URLs
+    if (/(bit\.ly|tinyurl\.com|t\.co)\/[a-zA-Z0-9]+/gi.test(sanitized)) {
+        exploitType = 'link';
+        sanitized = sanitized.replace(/bit\.ly\/[a-zA-Z0-9]+/gi, '[link removed]');
+        sanitized = sanitized.replace(/tinyurl\.com\/[a-zA-Z0-9]+/gi, '[link removed]');
+        sanitized = sanitized.replace(/t\.co\/[a-zA-Z0-9]+/gi, '[link removed]');
+    }
+
+    // 4. Log if exploit detected
+    if (exploitType) {
+        logger.warn('Exploit attempt detected', {
+            type: exploitType,
+            original: text.slice(0, 100)
+        });
+
+        // Return playful response instead
+        return {
+            text: randomResponse(EXPLOIT_RESPONSES[exploitType]),
+            exploitDetected: true
+        };
+    }
+
+    return { text: sanitized, exploitDetected: false };
+}
+
+// ============================================
 // Main API
 // ============================================
 
@@ -180,10 +290,14 @@ async function chat(message, context = {}) {
     }
 
     try {
-        const response = await chatOpenAI(message, context);
+        let response = await chatOpenAI(message, context);
+
+        // Sanitize response to prevent exploits
+        const sanitized = sanitizeResponse(response);
+
         return {
             success: true,
-            response,
+            response: sanitized.text,
             provider: OPENAI_MODEL
         };
     } catch (error) {

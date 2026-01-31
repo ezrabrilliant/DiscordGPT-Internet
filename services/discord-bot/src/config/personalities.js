@@ -12,8 +12,8 @@ const PERSONALITIES = {
 
 INSTRUKSI PENTING:
 1. SELALU gunakan informasi dari CONTEXT yang diberikan untuk menjawab
-2. Jika ada CONTEXT, WAJIB jawab berdasarkan CONTEXT tersebut
-3. Gunakan Bahasa Indonesia yang jelas dan singkat
+2. Jika ada CONTEXT, gunakan informasi tersebut sebisa mungkin
+3. Gunakan Bahasa sesuai dengan Bahasa yang digunakan oleh user yang bertanya
 4. Jika menyebutkan channel Discord, gunakan format <#channel_id>
 5. HANYA jika benar-benar tidak ada CONTEXT sama sekali, baru bilang tidak tahu
 6. Maksimal 200 kata`,
