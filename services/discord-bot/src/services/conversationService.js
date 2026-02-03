@@ -143,9 +143,12 @@ setInterval(cleanupExpiredThreads, 5 * 60 * 1000);
 module.exports = {
     getThread,
     addToThread,
+    addMessage: addToThread, // Alias for compatibility
+    getConversation: getThread, // Alias for compatibility
     getThreadHistory,
     formatThreadForAI,
     clearThread,
     getThreadStats,
     cleanupExpiredThreads
+};
 };
