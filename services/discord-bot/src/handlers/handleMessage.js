@@ -300,7 +300,28 @@ async function processAIChat(message, query, isDMChannel = false) {
         await message.reply({ embeds: [embed], components: [buttonRow] });
 
         // Save to memory
-        await memoryService.addConversation(message.author.id, {
+        await memoryService.addConversation(
+            message.author.id,
+            message.author.username,
+            query,
+            `[Button selection offered: ${routingDecision.buttonOptions.join(', ')}]`,
+            hasImages,
+            routingDecision.mood
+        );
+
+        // Add to conversation thread
+        try {
+            conversationService.addToThread(message.author.id, 'user', query, hasImages);
+            conversationService.addToThread(message.author.id, 'assistant', `[Button selection offered: ${routingDecision.buttonOptions.join(', ')}]`, false);
+        } catch (error) {
+            logger.debug('Failed to update thread', { error: error.message });
+        }
+
+        // Log conversation
+        await wintercodeClient.logConversation({
+            server: message.guild?.id || 'DM',
+            user: message.author.id,
+            username: message.author.username,
             query: query,
             reply: `[Button selection offered: ${routingDecision.buttonOptions.join(', ')}]`,
             hasImage: hasImages,

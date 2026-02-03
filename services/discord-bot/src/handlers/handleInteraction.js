@@ -16,28 +16,8 @@ async function handleButtonInteraction(interaction) {
     const { user, channel, customId } = interaction;
 
     try {
-        logger.debug('Starting button interaction', {
-            userId: user.id,
-            customId: customId
-        });
-
-        // Check if conversationService is loaded
-        logger.debug('Conversation service check', {
-            hasService: !!conversationService,
-            serviceType: typeof conversationService,
-            hasGetThread: typeof conversationService?.getThread
-        });
-
-        // Check if memoryService is loaded
-        logger.debug('Memory service check', {
-            hasMemoryService: !!memoryService,
-            memoryServiceType: typeof memoryService,
-            hasGetUserData: typeof memoryService?.getUserData
-        });
-
         // Defer reply (show loading state)
         await interaction.deferReply();
-        logger.debug('Defer reply completed');
 
         // Parse customId
         // Format: "select_{userId}|{optionIndex}|{optionName}|{originalQuery}"
@@ -47,21 +27,14 @@ async function handleButtonInteraction(interaction) {
         const optionName = decodeURIComponent(parts[2]);
         const originalQuery = decodeURIComponent(parts[3]);
 
-        logger.info(`Button clicked: ${user.username} selected option ${optionIndex + 1} from query: "${originalQuery}"`);
-        logger.debug('Parsed customId', { userId, optionIndex, optionName, originalQuery });
+        logger.info(`Button clicked: ${user.username} selected "${optionName}" from query: "${originalQuery}"`);
 
         // Get conversation context
-        logger.debug('Attempting to get thread...');
         const thread = conversationService.getThread(user.id);
-        logger.debug('Thread retrieved', { hasThread: !!thread, threadType: typeof thread });
-
-        logger.debug('Attempting to get user data...');
         const userData = await memoryService.getUserData(user.id);
-        logger.debug('User data retrieved', { hasUserData: !!userData, userType: typeof userData });
 
         // Format thread history for API
         const history = thread ? thread.messages : [];
-        logger.debug('History formatted', { historyLength: history.length });
 
         // Build detailed query - AI will generate detailed response for this option
         const detailQuery = `User memilih: "${optionName}" dari pertanyaan "${originalQuery}". Berikan rekomendasi SPESIFIK, DETAIL, dan KONKRET hanya untuk "${optionName}". Jangan jelaskan opsi lain. Berikan contoh nyata, rekomendasi spesifik, dan tips yang bisa langsung dipraktikkan. Singkat tapi padat.`;
@@ -94,16 +67,28 @@ async function handleButtonInteraction(interaction) {
         await channel.send({ embeds: [embed] });
 
         // Save to memory
-        await memoryService.addConversation(user.id, {
-            query: `[Selected option ${optionIndex + 1}] ${originalQuery}`,
-            reply: response.response,
-            hasImage: false,
-            mood: 'neutral'
-        });
+        await memoryService.addConversation(
+            user.id,
+            user.username,
+            `Pilihan: ${optionName} (dari: ${originalQuery})`,
+            response.response,
+            false,
+            'neutral'
+        );
 
         // Update conversation thread
-        conversationService.addToThread(user.id, 'user', `[Selected option ${optionIndex + 1}] ${originalQuery}`);
+        conversationService.addToThread(user.id, 'user', `Pilihan: ${optionName}`);
         conversationService.addToThread(user.id, 'assistant', response.response);
+
+        // Log to messages.log
+        wintercodeClient.logConversation({
+            server: channel.guildId || 'DM',
+            user: user.id,
+            username: user.username,
+            query: `Pilihan: ${optionName} (dari: ${originalQuery})`,
+            reply: response.response,
+            hasImage: false
+        });
 
         logger.info(`Button interaction completed for ${user.username}`);
 
