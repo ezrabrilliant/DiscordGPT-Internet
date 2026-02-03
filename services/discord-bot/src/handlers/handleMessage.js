@@ -268,7 +268,48 @@ async function processAIChat(message, query, isDMChannel = false) {
             : 'Jelaskan gambar ini dengan detail.';
     }
 
-    // Get AI response
+    // Check if we should use buttons (recommendation flow)
+    if (routingDecision.shouldUseButtons && routingDecision.buttonOptions.length > 0) {
+        // Send button selection UI
+        const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+
+        // Build embed with options
+        const optionsText = routingDecision.buttonOptions
+            .map((opt, i) => `${i + 1}. ${opt}`)
+            .join('\n');
+
+        const embed = new EmbedBuilder()
+            .setTitle('Silahkan pilih rekomendasi:')
+            .setDescription(optionsText)
+            .setColor(0x00FF00)
+            .setFooter({ text: 'Klik tombol di bawah untuk memilih' });
+
+        // Build button row
+        const buttonRow = new ActionRowBuilder();
+        routingDecision.buttonOptions.forEach((option, index) => {
+            const customId = `select_option_${message.author.id}_${index}_${encodeURIComponent(query)}`;
+            buttonRow.addComponents(
+                new ButtonBuilder()
+                    .setCustomId(customId)
+                    .setLabel(`${index + 1}`)
+                    .setStyle(ButtonStyle.Primary)
+            );
+        });
+
+        await message.reply({ embeds: [embed], components: [buttonRow] });
+
+        // Save to memory
+        await memoryService.addConversation(message.author.id, {
+            query: query,
+            reply: `[Button selection offered: ${routingDecision.buttonOptions.join(', ')}]`,
+            hasImage: hasImages,
+            mood: routingDecision.mood
+        });
+
+        return;
+    }
+
+    // Get AI response (normal flow without buttons)
     const result = await wintercodeClient.chat(fullQuery, context);
 
     if (result.success) {
@@ -285,14 +326,6 @@ async function processAIChat(message, query, isDMChannel = false) {
 
             if (hasImages && images.length > 0) {
                 embed.setImage(images[0].url);
-            }
-
-            // Add follow-up buttons if suggested
-            if (routingDecision.shouldOfferFollowUp && routingDecision.followUpSuggestions.length > 0) {
-                // For now, just append suggestions as text
-                // Can be enhanced with actual buttons later
-                const followUpText = '\n\n**Follow-up:**\n' + routingDecision.followUpSuggestions.map((s, i) => `${i + 1}. ${s}`).join('\n');
-                embed.setDescription(result.response.slice(0, 4000) + followUpText.slice(0, 96));
             }
 
             await message.reply({ embeds: [embed] });

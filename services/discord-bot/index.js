@@ -13,6 +13,7 @@ const { Client, IntentsBitField, GatewayIntentBits, ActivityType, Partials } = r
 const { env } = require('./src/config');
 const { logger } = require('./src/middleware');
 const handleMessage = require('./src/handlers/handleMessage');
+const { handleInteraction } = require('./src/handlers/handleInteraction');
 const wintercodeClient = require('./src/services/wintercodeClient');
 const { slashCommands, deploySlashCommands } = require('./src/slashCommands');
 const { handleReactionAdd, handleReactionRemove } = require('./src/handlers/handleReaction');
