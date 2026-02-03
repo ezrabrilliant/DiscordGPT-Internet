@@ -48,7 +48,7 @@ async function handleButtonInteraction(interaction) {
         const originalQuery = decodeURIComponent(parts[3]);
 
         logger.info(`Button clicked: ${user.username} selected option ${optionIndex + 1} from query: "${originalQuery}"`);
-        logger.debug('Parsed customId', { userId, optionIndex, originalQuery });
+        logger.debug('Parsed customId', { userId, optionIndex, optionName, originalQuery });
 
         // Get conversation context
         logger.debug('Attempting to get thread...');
