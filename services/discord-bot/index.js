@@ -109,8 +109,22 @@ bot.on('ready', async () => {
     setInterval(rotatePresence, 30000);
 });
 
-// Handle slash commands
+// Handle slash commands & button interactions
 bot.on('interactionCreate', async (interaction) => {
+    // Handle button interactions
+    if (interaction.isButton()) {
+        try {
+            await handleInteraction(interaction);
+        } catch (error) {
+            logger.error('Button interaction error', {
+                error: error.message,
+                stack: error.stack,
+            });
+        }
+        return;
+    }
+
+    // Handle slash commands
     if (!interaction.isChatInputCommand()) return;
 
     const command = slashCommands.get(interaction.commandName);
