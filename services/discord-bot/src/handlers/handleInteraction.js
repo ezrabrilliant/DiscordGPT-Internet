@@ -325,7 +325,7 @@ async function handlePageNavigation(interaction) {
             return row;
         };
 
-        const newEmbed = createPageEmbed(cacheData.pages[newPage], newPage + 1, cacheData.totalPages);
+        const newEmbed = createPageEmbed(cacheData.pages[newPage], newPage + 1, cacheData.totalPages, cacheData.displayOptionNum);
         const newButtons = createNavigationButtons(newPage, cacheData.totalPages);
 
         await message.edit({
@@ -333,7 +333,10 @@ async function handlePageNavigation(interaction) {
             components: [newButtons]
         });
 
-        logger.info(`Page navigation: ${user.username} moved to page ${newPage + 1}/${cacheData.totalPages}`);
+        logger.info(`Page navigation: ${user.username} moved to page ${newPage + 1}/${cacheData.totalPages}`, {
+            displayOptionNum: cacheData.displayOptionNum,
+            cacheKeys: Object.keys(cacheData)
+        });
 
     } catch (error) {
         logger.error('Error handling page navigation', { error: error.message });
