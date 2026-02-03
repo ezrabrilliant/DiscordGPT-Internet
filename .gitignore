@@ -89,3 +89,5 @@ services/ai-engine/data/chromadb/
 services/discord-bot/data/conversations/
 services/discord-bot/data/embeddings/
 *.zip
+services/discord-bot/api.md
+.gitignore
