@@ -1,7 +1,7 @@
 {
   "name": "discord-bot",
-  "version": "2.0.0",
-  "description": "Discord Bot with Khodam checker and AI features",
+  "version": "4.2.3",
+  "description": "Discord Bot with AI recommendations, interactive buttons, and pagination system",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

@@ -53,20 +53,27 @@ async function handleButtonInteraction(interaction) {
             throw new Error(response.error || 'AI response failed');
         }
 
-        // Split response into pages by ### headers
+        // Split response into pages - ALL ### headers become separate pages
         let finalPages = [];
         
-        // Try to split by ### (numbered headers like ### 1., ### 2., etc)
-        const hashPattern = /\n###\s+\d+\./;
+        // Split by ### (any format: ### 1., ### Title, etc)
+        const hashPattern = /\n###\s*/;
+        
         if (hashPattern.test(response.response)) {
+            // Split by all ### headers
             const sections = response.response.split(hashPattern);
             
-            // First section is the intro (before first ###)
-            finalPages.push(sections[0]);
+            // Keep everything BEFORE first ### as intro (page 1)
+            if (sections[0].trim()) {
+                finalPages.push(sections[0].trim());
+            }
             
-            // Each subsequent section is a page (restore the ### header)
+            // Each section after ### becomes its own page
             for (let i = 1; i < sections.length; i++) {
-                finalPages.push('### ' + sections[i]);
+                const sectionText = sections[i].trim();
+                if (sectionText) {
+                    finalPages.push('### ' + sectionText);
+                }
             }
         } else {
             // Try split by --- separator
@@ -163,6 +170,9 @@ async function handleButtonInteraction(interaction) {
             embeds: [firstEmbed], 
             components: components
         });
+        
+        // Tag user after sending
+        await channel.send(`${user.toString()} Rekomendasi sudah muncul! Cek di atas 👆`);
         
         logger.info('Message sent', {
             messageId: sentMessage.id,
@@ -325,7 +335,7 @@ async function handlePageNavigation(interaction) {
             return row;
         };
 
-        const newEmbed = createPageEmbed(cacheData.pages[newPage], newPage + 1, cacheData.totalPages, cacheData.displayOptionNum);
+        const newEmbed = createPageEmbed(cacheData.pages[newPage], newPage + 1, cacheData.totalPages, cacheData.displayOptionNum || cacheData.optionIndex + 1);
         const newButtons = createNavigationButtons(newPage, cacheData.totalPages);
 
         await message.edit({
