@@ -137,8 +137,8 @@ function getDefaultDecision() {
     return {
         mood: 'neutral',
         shouldUseEmbed: false,
-        shouldOfferFollowUp: false,
-        followUpSuggestions: [],
+        shouldUseButtons: false,
+        buttonOptions: [],
         extractedInfo: {
             name: null,
             age: null,
