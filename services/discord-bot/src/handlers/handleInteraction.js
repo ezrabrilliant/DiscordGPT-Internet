@@ -6,7 +6,7 @@
 const { EmbedBuilder } = require('discord.js');
 const { wintercodeClient } = require('../services/wintercodeClient');
 const { memoryService } = require('../services/memoryService');
-const { conversationService } = require('../services/conversationService');
+const conversationService = require('../services/conversationService');
 const { logger } = require('../middleware');
 
 /**
@@ -28,8 +28,16 @@ async function handleButtonInteraction(interaction) {
             hasGetThread: typeof conversationService?.getThread
         });
 
+        // Check if memoryService is loaded
+        logger.debug('Memory service check', {
+            hasMemoryService: !!memoryService,
+            memoryServiceType: typeof memoryService,
+            hasGetUserData: typeof memoryService?.getUserData
+        });
+
         // Defer reply (show loading state)
         await interaction.deferReply();
+        logger.debug('Defer reply completed');
 
         // Parse customId
         // Format: "select_option_{userId}_{optionIndex}_{originalQuery}"
@@ -39,13 +47,20 @@ async function handleButtonInteraction(interaction) {
         const originalQuery = decodeURIComponent(parts.slice(4).join('_'));
 
         logger.info(`Button clicked: ${user.username} selected option ${optionIndex + 1} from query: "${originalQuery}"`);
+        logger.debug('Parsed customId', { userId, optionIndex, originalQuery });
 
         // Get conversation context
+        logger.debug('Attempting to get thread...');
         const thread = conversationService.getThread(user.id);
+        logger.debug('Thread retrieved', { hasThread: !!thread, threadType: typeof thread });
+
+        logger.debug('Attempting to get user data...');
         const userData = await memoryService.getUserData(user.id);
+        logger.debug('User data retrieved', { hasUserData: !!userData, userType: typeof userData });
 
         // Format thread history for API
         const history = thread ? thread.messages : [];
+        logger.debug('History formatted', { historyLength: history.length });
 
         // Build detailed query - AI will generate detailed response for this option
         const detailQuery = `User selected option ${optionIndex + 1} from the question: "${originalQuery}". Provide detailed, comprehensive information specifically about this choice. Include specific recommendations, examples, and actionable advice.`;
