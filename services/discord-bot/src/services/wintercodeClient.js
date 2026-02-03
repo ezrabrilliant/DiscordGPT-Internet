@@ -102,32 +102,47 @@ async function imageToBase64(imageSource) {
 /**
  * Chat with WinterCode API (text only)
  * @param {string} message - User message
- * @param {object} options - { model, temperature, systemPrompt }
+ * @param {object} options - { model, temperature, systemPrompt, conversationHistory }
  */
 async function chatText(message, options = {}) {
     const model = options.model || DEFAULT_MODEL;
     const temperature = options.temperature ?? 0.7;
     const maxTokens = options.maxTokens || 2000;
 
-    const requestBody = {
-        model,
-        messages: [{ role: 'user', content: message }],
-        temperature,
-        max_output_tokens: maxTokens,
-    };
+    // Build messages array
+    const messages = [];
 
     // Add system prompt if provided
     if (options.systemPrompt) {
-        requestBody.messages.unshift({
+        messages.push({
             role: 'system',
             content: options.systemPrompt
         });
     }
 
+    // Add conversation history if provided
+    if (options.conversationHistory && options.conversationHistory.length > 0) {
+        messages.push({
+            role: 'system',
+            content: `Conversation history (recent messages):\n${options.conversationHistory}\n\nUse this context to understand what we were discussing.`
+        });
+    }
+
+    // Add current message
+    messages.push({ role: 'user', content: message });
+
+    const requestBody = {
+        model,
+        messages,
+        temperature,
+        max_output_tokens: maxTokens,
+    };
+
     logger.debug('WinterCode API request', {
         model,
         messageLength: message.length,
-        hasSystemPrompt: !!options.systemPrompt
+        hasSystemPrompt: !!options.systemPrompt,
+        hasHistory: !!options.conversationHistory
     });
 
     const response = await fetchWithTimeout(
@@ -162,52 +177,67 @@ async function chatText(message, options = {}) {
 /**
  * Chat with WinterCode API (text + image)
  * @param {string} message - User message
- * @param {string|object} image - Image URL, path, or Discord attachment
+ * @param {string|object|array} images - Image URL, path, Discord attachment, or array of images
  * @param {object} options - { model, temperature, systemPrompt }
  */
-async function chatWithImage(message, image, options = {}) {
+async function chatWithImage(message, images, options = {}) {
     const model = options.model || MODELS.VISION;
     const temperature = options.temperature ?? 0.7;
     const maxTokens = options.maxTokens || 2000;
 
-    // Convert image to base64
-    const imageData = await imageToBase64(image);
+    // Normalize images to array
+    const imageArray = Array.isArray(images) ? images : [images];
 
-    // Build content array with text + image
-    const content = [
-        {
+    // Convert all images to base64
+    const imagePromises = imageArray.map(img => imageToBase64(img));
+    const imageDataList = await Promise.all(imagePromises);
+
+    // Build content array with text + multiple images
+    const content = [];
+
+    // Add all images first
+    for (const imageData of imageDataList) {
+        content.push({
             type: 'image',
             source: {
                 type: 'base64',
                 media_type: imageData.mediaType,
                 data: imageData.data
             }
-        },
-        {
-            type: 'text',
-            text: message || 'Deskripsikan gambar ini.'
-        }
-    ];
+        });
+    }
 
-    const requestBody = {
-        model,
-        messages: [{ role: 'user', content }],
-        temperature,
-        max_output_tokens: maxTokens,
-    };
+    // Add text
+    content.push({
+        type: 'text',
+        text: message || imageArray.length > 1 ? 'Jelaskan gambar-gambar ini.' : 'Jelaskan gambar ini.'
+    });
 
-    // Add system prompt if provided
+    // Build messages array
+    const messages = [];
+
+    // Add system prompt
     if (options.systemPrompt) {
-        requestBody.messages.unshift({
+        messages.push({
             role: 'system',
             content: options.systemPrompt
         });
     }
 
+    // Add user message with images
+    messages.push({ role: 'user', content });
+
+    const requestBody = {
+        model,
+        messages,
+        temperature,
+        max_output_tokens: maxTokens,
+    };
+
     logger.debug('WinterCode API request (vision)', {
         model,
         messageLength: message.length,
-        imageSize: imageData.data.length,
+        imageCount: imageDataList.length,
         hasSystemPrompt: !!options.systemPrompt
     });
 
@@ -353,7 +383,7 @@ function stopHealthChecks() {
 /**
  * Send a chat message (auto-detects if image is present)
  * @param {string} message - User message
- * @param {object} context - { username, userId, guildId, image, replyTo, etc }
+ * @param {object} context - { username, userId, guildId, images, replyTo, threadHistory, mood, moodAdjustment, etc }
  */
 async function chat(message, context = {}) {
     if (!API_KEY) {
@@ -375,9 +405,19 @@ async function chat(message, context = {}) {
             systemPrompt += `\nUser yang bertanya: ${context.username}`;
         }
 
+        // Add mood adjustment
+        if (context.moodAdjustment) {
+            systemPrompt += `\n\n${context.moodAdjustment}`;
+        }
+
         // Add reply context
         if (context.replyTo) {
-            systemPrompt += `\nUser sedang membalas pesan: "${context.replyTo}"`;
+            systemPrompt += `\n\nUser sedang membalas pesan: "${context.replyTo}"`;
+        }
+
+        // Add profile info
+        if (context.profileInfo) {
+            systemPrompt += `\n\n${context.profileInfo}`;
         }
 
         // Add server context
@@ -392,9 +432,14 @@ async function chat(message, context = {}) {
             systemPrompt
         };
 
-        // If image present, use vision API
-        if (context.image) {
-            response = await chatWithImage(message, context.image, options);
+        // Add conversation history if available
+        if (context.threadHistory) {
+            options.conversationHistory = context.threadHistory;
+        }
+
+        // If images present, use vision API
+        if (context.images && context.images.length > 0) {
+            response = await chatWithImage(message, context.images, options);
         } else {
             response = await chatText(message, options);
         }
