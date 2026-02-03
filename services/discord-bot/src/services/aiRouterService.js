@@ -179,31 +179,30 @@ function makeHeuristicDecision(message, context) {
 
     const shouldUseEmbed = hasImages || (isRecommendation && isLong);
 
-    // Decide follow-up
-    const isQuestion = /\?|apa|siapa|kapan|dimana|kenapa|bagaimana|how|what|when|where|why/i.test(lower);
-    const isUncertain = /kayak|maybe|mungkin|nggak|gak|tidak|kurang/.test(lower);
-    const shouldOfferFollowUp = (isRecommendation || isQuestion) && isUncertain;
+    // Decide buttons - use buttons for recommendations, let AI router generate options
+    let shouldUseButtons = false;
+    let buttonOptions = [];
 
-    let followUpSuggestions = [];
-    if (shouldOfferFollowUp) {
-        if (lower.includes('laptop') || lower.includes('hp')) {
-            followUpSuggestions = ['Mau rekomendasi dengan budget berapa?', 'Butuh spesifikasi khusus?'];
-        } else if (lower.includes('film') || lower.includes('movie')) {
-            followUpSuggestions = ['Mau genre apa?', 'Prefer yang tahun berapa?'];
-        } else {
-            followUpSuggestions = ['Mau detail lebih lanjut?', 'Ada pertanyaan lain?'];
-        }
+    if (isRecommendation) {
+        shouldUseButtons = true;
+        buttonOptions = []; // Empty - let AI Router generate specific options
     }
 
     return {
         mood,
         shouldUseEmbed,
-        shouldOfferFollowUp,
-        followUpSuggestions,
+        shouldUseButtons,
+        buttonOptions,
         extractedInfo: {
             name: null,
             age: null,
             location: null,
+            preferences: []
+        },
+        confidence: 0.7, // Heuristic has medium confidence
+        reasoning: 'Heuristic: Pattern-based decision'
+    };
+}
             preferences: []
         },
         confidence: 0.6,
