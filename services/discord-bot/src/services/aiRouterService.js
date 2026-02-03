@@ -203,12 +203,6 @@ function makeHeuristicDecision(message, context) {
         reasoning: 'Heuristic: Pattern-based decision'
     };
 }
-            preferences: []
-        },
-        confidence: 0.6,
-        reasoning: 'Heuristic fallback'
-    };
-}
 
 /**
  * Validate and fix decision structure
