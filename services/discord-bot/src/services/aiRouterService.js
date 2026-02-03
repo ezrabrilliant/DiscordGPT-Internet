@@ -31,8 +31,8 @@ Return ONLY a valid JSON (no markdown, no extra text) with this exact structure:
 {
   "mood": "happy|sad|angry|excited|confused|worried|neutral",
   "shouldUseEmbed": true/false,
-  "shouldOfferFollowUp": true/false,
-  "followUpSuggestions": ["suggestion1", "suggestion2"] or [],
+  "shouldUseButtons": true/false,
+  "buttonOptions": ["Option 1", "Option 2", "Option 3"] or [],
   "extractedInfo": {
     "name": null or "extracted name",
     "age": null or "extracted age",
@@ -46,10 +46,16 @@ Return ONLY a valid JSON (no markdown, no extra text) with this exact structure:
 Rules:
 1. MOOD: Detect from emojis, keywords, and tone
 2. EMBED: Use for long responses, image analysis, structured info, recommendations. Use plain text for casual chat.
-3. FOLLOW-UP: Only suggest if user asked for recommendations, help, or seems unsure. Don't suggest for simple factual questions.
-4. EXTRACTED INFO: Extract any personal info mentioned (name, age, location, preferences)
-5. CONFIDENCE: How confident are you in this analysis? (0.0-1.0)
-6. REASONING: Brief explanation of your decision
+3. BUTTONS: Use buttons when user asks for recommendations and you can provide 2-4 distinct options to choose from. Each button should represent a different category/choice.
+4. BUTTON OPTIONS: Provide 2-4 clear, distinct options that the user can choose from. Each option should be short (under 30 chars).
+5. EXTRACTED INFO: Extract any personal info mentioned (name, age, location, preferences)
+6. CONFIDENCE: How confident are you in this analysis? (0.0-1.0)
+7. REASONING: Brief explanation of your decision
+
+Examples when to use buttons:
+- "rekomendasi laptop" → ["Budget 4-6jt", "Mid-Range 10-13jt", "High-End 20jt+"]
+- "rekomendasi film" → ["Horror", "Action", "Comedy", "Romance"]
+- "rekomendasi makanan" → ["Pedas", "Manis", "Asin", "Tradisional"]
 
 Important: Return ONLY the JSON, nothing else!`;
 
