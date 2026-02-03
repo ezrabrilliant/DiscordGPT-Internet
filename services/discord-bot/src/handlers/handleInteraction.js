@@ -29,8 +29,11 @@ async function handleButtonInteraction(interaction) {
         logger.info(`Button clicked: ${user.username} selected option ${optionIndex + 1} from query: "${originalQuery}"`);
 
         // Get conversation context
-        const context = await conversationService.getConversation(user.id);
+        const thread = conversationService.getThread(user.id);
         const userData = await memoryService.getUserData(user.id);
+
+        // Format thread history for API
+        const history = thread ? thread.messages : [];
 
         // Build detailed query - AI will generate detailed response for this option
         const detailQuery = `User selected option ${optionIndex + 1} from the question: "${originalQuery}". Provide detailed, comprehensive information specifically about this choice. Include specific recommendations, examples, and actionable advice.`;
@@ -40,7 +43,7 @@ async function handleButtonInteraction(interaction) {
             userId: user.id,
             username: user.username,
             serverId: channel.guildId,
-            history: context?.messages || [],
+            history: history,
             profile: userData?.profile
         });
 
