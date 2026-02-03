@@ -1,13 +1,16 @@
 /**
- * Message Handler
- * Main entry point for processing Discord messages
+ * Message Handler v2
+ * Enhanced with:
+ * - Reply context awareness
+ * - Image/sticker reading
+ * - Better conversation flow
  */
 
-const { ChannelType } = require('discord.js');
+const { ChannelType, MessageType } = require('discord.js');
 const { getCommand } = require('../commands');
 const { security, logger } = require('../middleware');
 const { PREFIX, AI_PREFIXES, MESSAGES } = require('../config');
-const aiClient = require('../services/aiClient');
+const wintercodeClient = require('../services/wintercodeClient');
 
 /**
  * Parse command from message content
@@ -27,8 +30,7 @@ function isAIMessage(content) {
 }
 
 /**
- * Check if message is a DM (Direct Message)
- * Discord.js v14: Use ChannelType.DM
+ * Check if message is a DM
  */
 function isDM(message) {
     return message.channel.type === ChannelType.DM;
@@ -36,13 +38,11 @@ function isDM(message) {
 
 /**
  * Extract the actual question from AI message
- * Removes the prefix (zra, ezra) from the message
  */
 function extractAIQuery(content) {
     const lower = content.toLowerCase();
     for (const prefix of AI_PREFIXES) {
         if (lower.startsWith(prefix)) {
-            // Remove prefix and trim, handle cases like "zra," or "ezra "
             return content.slice(prefix.length).replace(/^[,\s]+/, '').trim();
         }
     }
@@ -50,13 +50,112 @@ function extractAIQuery(content) {
 }
 
 /**
- * Process AI chat request (shared logic for DM and server)
+ * Get image from message (attachment or sticker)
+ */
+function getMessageImage(message) {
+    // Check for attachments (images)
+    if (message.attachments.size > 0) {
+        const attachment = message.attachments.first();
+        // Only process image attachments
+        if (attachment.contentType && attachment.contentType.startsWith('image/')) {
+            return {
+                url: attachment.url,
+                contentType: attachment.contentType,
+                name: attachment.name
+            };
+        }
+    }
+
+    // Check for stickers
+    if (message.stickers.size > 0) {
+        const sticker = message.stickers.first();
+        return {
+            url: sticker.url,
+            contentType: 'image/png', // Stickers are usually PNG
+            name: sticker.name
+        };
+    }
+
+    return null;
+}
+
+/**
+ * Get replied message content (for context)
+ */
+async function getRepliedMessage(message) {
+    if (message.type === MessageType.Reply && message.reference) {
+        try {
+            const repliedMessage = await message.channel.messages.fetch(message.reference.messageId);
+            return {
+                content: repliedMessage.content,
+                author: repliedMessage.author.username,
+                image: getMessageImage(repliedMessage)
+            };
+        } catch (error) {
+            logger.debug('Failed to fetch replied message', { error: error.message });
+        }
+    }
+    return null;
+}
+
+/**
+ * Build enhanced context for AI
+ */
+async function buildAIContext(message, query, isDMChannel) {
+    const context = {
+        username: message.author.username,
+        userId: message.author.id,
+        guildId: message.guild?.id || 'DM',
+        serverId: message.guild?.id || 'DM',
+        serverName: message.guild?.name || 'Direct Message',
+        channelId: message.channel.id,
+        channelName: message.channel.name || 'DM',
+        isDM: isDMChannel,
+    };
+
+    // Get image if present
+    const image = getMessageImage(message);
+    if (image) {
+        context.image = image;
+        logger.debug('Image detected in message', {
+            type: image.contentType,
+            name: image.name
+        });
+    }
+
+    // Get replied message for context
+    const repliedMessage = await getRepliedMessage(message);
+    if (repliedMessage) {
+        context.replyTo = `${repliedMessage.author}: "${repliedMessage.content || '[image/sticker]'}"`;
+
+        // If the replied message has an image, mention it
+        if (repliedMessage.image) {
+            context.replyTo += ` [${repliedMessage.image.contentType}]`;
+
+            // If current message is just asking about the replied image, use that image
+            if (!context.image && query.toLowerCase().includes('ini') && query.length < 50) {
+                context.image = repliedMessage.image;
+                logger.debug('Using image from replied message');
+            }
+        }
+
+        logger.debug('Reply context', { replyTo: context.replyTo });
+    }
+
+    return context;
+}
+
+/**
+ * Process AI chat request
  */
 async function processAIChat(message, query, isDMChannel = false) {
-    // Check if there's actually a question
-    if (!query || query.length < 2) {
+    // Check if there's actually content
+    const hasText = query && query.length > 0;
+    const hasImage = getMessageImage(message) !== null;
+
+    if (!hasText && !hasImage) {
         return message.reply(isDMChannel
-            ? 'Halo! Langsung aja tanya, gak perlu pake "zra" di DM 😊'
+            ? 'Halo! Kirim pesan atau gambar ya, aku akan bantu jawab 😊'
             : 'Halo! Ada yang bisa kubantu? 😊'
         );
     }
@@ -64,38 +163,45 @@ async function processAIChat(message, query, isDMChannel = false) {
     // Show typing indicator
     await message.channel.sendTyping();
 
+    // Build enhanced context
+    const context = await buildAIContext(message, query, isDMChannel);
+
+    // Build full query with context
+    let fullQuery = query;
+    if (context.replyTo) {
+        fullQuery = `[Context: Membalas pesan "${context.replyTo}"]\n\n${query || 'Jelaskan gambar ini.'}`;
+    }
+
+    // If only image without text, provide default prompt
+    if (!hasText && hasImage) {
+        fullQuery = 'Jelaskan gambar ini dengan detail.';
+    }
+
     // Get AI response
-    const result = await aiClient.chat(query, {
-        username: message.author.username,
-        userId: message.author.id,
-        guildId: message.guild?.id || 'DM', // For personality detection
-        serverId: message.guild?.id || 'DM',
-        serverName: message.guild?.name || 'Direct Message',
-        channelId: message.channel.id,
-        channelName: message.channel.name || 'DM',
-        isDM: isDMChannel,
-    });
+    const result = await wintercodeClient.chat(fullQuery, context);
 
     if (result.success) {
         // Send response
         await message.reply(result.response);
 
-        // Log conversation for RAG
-        await aiClient.logConversation({
+        // Log conversation
+        await wintercodeClient.logConversation({
             server: message.guild?.id || 'DM',
             user: message.author.id,
             username: message.author.username,
-            query: query,
+            query: fullQuery,
             reply: result.response,
+            hasImage: !!context.image,
         });
 
-        // Log provider info
+        // Log info
         logger.info('AI response sent', {
             user: message.author.tag,
             provider: result.provider,
-            queryLength: query.length,
+            queryLength: fullQuery.length,
             responseLength: result.response.length,
             isDM: isDMChannel,
+            hasImage: !!context.image
         });
     } else {
         // AI failed
@@ -115,15 +221,13 @@ async function handleMessage(message) {
 
         // Layer 2: Check if it's a DM - respond without prefix!
         if (isDM(message)) {
-            // In DMs, respond to everything (no prefix needed)
             const query = message.content.trim();
-
-            // Strip prefix if they still use it in DM
             const cleanQuery = isAIMessage(query) ? extractAIQuery(query) : query;
 
             logger.debug('DM received', {
                 user: message.author.tag,
-                query: cleanQuery.substring(0, 50)
+                query: cleanQuery.substring(0, 50),
+                hasImage: getMessageImage(message) !== null
             });
 
             return await processAIChat(message, cleanQuery, true);
@@ -143,6 +247,11 @@ async function handleMessage(message) {
             const command = getCommand(commandName);
 
             if (command) {
+                // Check if command is disabled
+                if (command.meta && command.meta.disabled) {
+                    return message.reply(`❌ Command !${commandName} sedang dinonaktifkan.`);
+                }
+
                 logger.debug(`Executing command: ${commandName}`, {
                     user: message.author.tag,
                     guild: message.guild?.name
@@ -156,17 +265,16 @@ async function handleMessage(message) {
         }
 
         // Layer 5: GTID Help Channel - respond without prefix
-        // Channel khusus untuk member baru bertanya
         const GTID_HELP_CHANNEL = '1084384617605382184';
         if (message.channel.id === GTID_HELP_CHANNEL) {
             const query = message.content.trim();
 
-            // Ignore if it's a command or too short
             if (query.startsWith(PREFIX) || query.length < 3) return;
 
             logger.debug('GTID Help Channel message', {
                 user: message.author.tag,
-                query: query.substring(0, 50)
+                query: query.substring(0, 50),
+                hasImage: getMessageImage(message) !== null
             });
 
             return await processAIChat(message, query, false);

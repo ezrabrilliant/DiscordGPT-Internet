@@ -13,8 +13,7 @@ const { Client, IntentsBitField, GatewayIntentBits, ActivityType, Partials } = r
 const { env } = require('./src/config');
 const { logger } = require('./src/middleware');
 const handleMessage = require('./src/handlers/handleMessage');
-const aiClient = require('./src/services/aiClient');
-const ragService = require('./src/services/ragService');
+const wintercodeClient = require('./src/services/wintercodeClient');
 const { slashCommands, deploySlashCommands } = require('./src/slashCommands');
 
 // ============================================
@@ -63,15 +62,18 @@ let activityIndex = 0;
 let statusIndex = 0;
 
 function rotatePresence() {
-    // Set both activity AND custom status simultaneously
-
-    // Also set activity separately for "Playing/Watching" display
-    bot.user.setActivity(activities[activityIndex].name, {
-        type: activities[activityIndex].type,
+    // Only set custom status (activities array is empty)
+    bot.user.setPresence({
+        activities: null,
+        status: 'online',
     });
 
-    // Rotate independently (different array lengths = different cycles)
-    activityIndex = (activityIndex + 1) % activities.length;
+    // Set custom status
+    bot.user.setActivity(customStatuses[statusIndex], {
+        type: ActivityType.Custom,
+    });
+
+    // Rotate status
     statusIndex = (statusIndex + 1) % customStatuses.length;
 }
 
@@ -91,17 +93,9 @@ bot.on('ready', async () => {
         logger.error('Failed to deploy slash commands', { error: error.message });
     }
 
-    // Initialize RAG service (load embeddings)
-    try {
-        await ragService.initialize();
-        logger.info('RAG service initialized', ragService.getStatus());
-    } catch (error) {
-        logger.warn('RAG service initialization failed (will work without RAG)', { error: error.message });
-    }
-
-    // Start AI health checks
-    aiClient.startHealthChecks();
-    logger.info('AI health checks started', aiClient.getStatus());
+    // Start AI client
+    wintercodeClient.startHealthChecks();
+    logger.info('AI client started', wintercodeClient.getStatus());
 
     // Set initial presence and rotate every 30 seconds
     rotatePresence();
@@ -153,14 +147,14 @@ bot.on('warn', (warning) => {
 
 process.on('SIGINT', () => {
     logger.info('Received SIGINT, shutting down gracefully...');
-    aiClient.stopHealthChecks();
+    wintercodeClient.stopHealthChecks();
     bot.destroy();
     process.exit(0);
 });
 
 process.on('SIGTERM', () => {
     logger.info('Received SIGTERM, shutting down gracefully...');
-    aiClient.stopHealthChecks();
+    wintercodeClient.stopHealthChecks();
     bot.destroy();
     process.exit(0);
 });

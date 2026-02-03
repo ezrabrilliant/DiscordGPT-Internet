@@ -8,12 +8,14 @@ const { logger } = require('../middleware');
 
 /**
  * Command metadata
+ * NOTE: This command is DISABLED
  */
 const meta = {
     name: 'khodam',
     aliases: ['cekkhodam'],
-    description: 'Cek khodam seseorang',
+    description: 'Cek khodam seseorang (DISABLED)',
     usage: '!khodam @username',
+    disabled: true, // Command is disabled
 };
 
 /**
@@ -43,27 +45,8 @@ function generateKhodam() {
  * @param {string[]} args - Command arguments
  */
 async function execute(message, args) {
-    const mentions = message.mentions.members;
-    let targetName;
-
-    // Get target name from mention or args
-    if (mentions.size > 0) {
-        const member = mentions.first();
-        targetName = member.nickname || member.displayName;
-    } else if (args.length > 0) {
-        targetName = args.join(' ');
-    } else {
-        return message.reply(MESSAGES.KHODAM_USAGE);
-    }
-
-    // Generate and send result
-    const khodam = generateKhodam();
-    const reply = `Khodam yang ada di dalam diri **${targetName}**, adalah **${khodam}**`;
-
-    logger.info('Khodam command executed', { target: targetName, result: khodam });
-    logger.logInteraction(message, reply);
-
-    return message.reply(reply);
+    // Command is disabled
+    return message.reply('❌ Command !khodam sedang dinonaktifkan. Silakan gunakan fitur AI dengan prefix "zra" atau "ezra" 😊');
 }
 
 module.exports = {
