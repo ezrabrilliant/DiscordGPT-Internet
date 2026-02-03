@@ -3,17 +3,17 @@
  * Processes button clicks and responds with detailed information
  */
 
-const { EmbedBuilder, ComponentType } = require('discord.js');
+const { EmbedBuilder } = require('discord.js');
 const { wintercodeClient } = require('../services/wintercodeClient');
-const { aiRouterService } = require('../services/aiRouterService');
 const { memoryService } = require('../services/memoryService');
 const { conversationService } = require('../services/conversationService');
+const { logger } = require('../middleware');
 
 /**
  * Handle button interaction
  */
 async function handleButtonInteraction(interaction) {
-    const { user, channel, customId, message } = interaction;
+    const { user, channel, customId } = interaction;
 
     try {
         // Defer reply (show loading state)
@@ -24,14 +24,16 @@ async function handleButtonInteraction(interaction) {
         const parts = customId.split('_');
         const userId = parts[2];
         const optionIndex = parseInt(parts[3]);
-        const originalQuery = parts.slice(4).join('_');
+        const originalQuery = decodeURIComponent(parts.slice(4).join('_'));
+
+        logger.info(`Button clicked: ${user.username} selected option ${optionIndex + 1} from query: "${originalQuery}"`);
 
         // Get conversation context
         const context = await conversationService.getConversation(user.id);
         const userData = await memoryService.getUserData(user.id);
 
-        // Build detailed query
-        const detailQuery = `User selected option ${optionIndex + 1} from: "${originalQuery}". Provide detailed information about this specific option.`;
+        // Build detailed query - AI will generate detailed response for this option
+        const detailQuery = `User selected option ${optionIndex + 1} from the question: "${originalQuery}". Provide detailed, comprehensive information specifically about this choice. Include specific recommendations, examples, and actionable advice.`;
 
         // Get AI response with detail
         const response = await wintercodeClient.chat(detailQuery, {
@@ -42,13 +44,13 @@ async function handleButtonInteraction(interaction) {
             profile: userData?.profile
         });
 
-        // Delete the defer reply and send new message
+        // Delete the defer reply (loading state)
         await interaction.deleteReply();
 
         // Send embed with detailed response
         const embed = new EmbedBuilder()
             .setTitle(`✅ Pilihan ${optionIndex + 1}`)
-            .setDescription(response.reply)
+            .setDescription(response.reply.slice(0, 4096))
             .setColor('#00ff88')
             .setFooter({ text: `Powered by ${response.provider}` })
             .setTimestamp();
@@ -67,8 +69,10 @@ async function handleButtonInteraction(interaction) {
         await conversationService.addMessage(user.id, 'user', `[Selected option ${optionIndex + 1}] ${originalQuery}`);
         await conversationService.addMessage(user.id, 'assistant', response.reply);
 
+        logger.info(`Button interaction completed for ${user.username}`);
+
     } catch (error) {
-        console.error('Error handling button interaction:', error);
+        logger.error('Error handling button interaction', { error: error.message });
 
         try {
             // Edit the defer reply with error message
@@ -78,7 +82,7 @@ async function handleButtonInteraction(interaction) {
                 components: []
             });
         } catch (editError) {
-            console.error('Error editing reply:', editError);
+            logger.error('Error editing reply', { error: editError.message });
         }
     }
 }
@@ -89,7 +93,7 @@ async function handleButtonInteraction(interaction) {
 async function handleInteraction(interaction) {
     if (!interaction.isButton()) return;
 
-    console.log(`Button clicked by ${interaction.user.username}: ${interaction.customId}`);
+    logger.info(`Button interaction received: ${interaction.customId}`);
 
     await handleButtonInteraction(interaction);
 }
