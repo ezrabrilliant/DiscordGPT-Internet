@@ -224,11 +224,11 @@ function validateAndFixDecision(decision) {
 
     // Validate booleans
     validated.shouldUseEmbed = Boolean(validated.shouldUseEmbed);
-    validated.shouldOfferFollowUp = Boolean(validated.shouldOfferFollowUp);
+    validated.shouldUseButtons = Boolean(validated.shouldUseButtons);
 
     // Validate arrays
-    if (!Array.isArray(validated.followUpSuggestions)) {
-        validated.followUpSuggestions = [];
+    if (!Array.isArray(validated.buttonOptions)) {
+        validated.buttonOptions = [];
     }
     if (!Array.isArray(validated.extractedInfo?.preferences)) {
         validated.extractedInfo.preferences = [];
