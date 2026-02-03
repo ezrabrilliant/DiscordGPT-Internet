@@ -69,8 +69,8 @@ async function handleButtonInteraction(interaction) {
         });
 
         // Update conversation thread
-        await conversationService.addMessage(user.id, 'user', `[Selected option ${optionIndex + 1}] ${originalQuery}`);
-        await conversationService.addMessage(user.id, 'assistant', response.reply);
+        conversationService.addToThread(user.id, 'user', `[Selected option ${optionIndex + 1}] ${originalQuery}`);
+        conversationService.addToThread(user.id, 'assistant', response.reply);
 
         logger.info(`Button interaction completed for ${user.username}`);
 
