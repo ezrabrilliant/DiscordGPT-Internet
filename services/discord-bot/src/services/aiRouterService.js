@@ -5,14 +5,13 @@
  */
 
 const { logger } = require('../middleware');
+const geminiDirectClient = require('./geminiDirectClient');
 
-const ROUTER_API_KEY = process.env.WINTERCODE_API_KEY || 'xxhengkerpromax';
-const ROUTER_API_URL = 'https://ai.wintercode.dev/v1/messages';
 const ROUTER_MODEL = 'gemini-2.5-flash'; // Fast & cheap for routing
-const ROUTER_TIMEOUT = 30000; // 30 seconds (API can be slow)
+const ROUTER_TIMEOUT = 30000; // 30 seconds
 
 /**
- * Make routing decision via AI
+ * Make routing decision via AI (using Gemini Direct - cheaper)
  * Analyzes message and returns structured JSON decision
  */
 async function makeRoutingDecision(message, context = {}) {
@@ -59,50 +58,28 @@ Examples when to use buttons:
 
 Important: Return ONLY the JSON, nothing else!`;
 
-        const requestBody = {
+        const response = await geminiDirectClient.chat(prompt, {
             model: ROUTER_MODEL,
-            messages: [
-                {
-                    role: 'user',
-                    content: prompt
-                }
-            ],
-            temperature: 0.3, // Low temperature for consistent decisions
-            max_output_tokens: 500,
-        };
-
-        const response = await fetch(ROUTER_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': ROUTER_API_KEY,
-            },
-            body: JSON.stringify(requestBody),
-            signal: AbortSignal.timeout(ROUTER_TIMEOUT),
+            temperature: 0.3,
+            maxTokens: 1000, // Increase from 500 to 1000
+            timeout: ROUTER_TIMEOUT
         });
 
-        if (!response.ok) {
-            throw new Error(`Router API error: ${response.status}`);
+        if (!response.success) {
+            throw new Error(response.error);
         }
 
-        const data = await response.json();
-
-        // Extract text from response
-        let decisionText = '';
-        if (data.content && data.content.length > 0) {
-            const textContent = data.content.find(item => item.type === 'text');
-            decisionText = textContent?.text || '{}';
-        }
+        const decisionText = response.response;
 
         // Parse JSON - handle potential markdown formatting
-        decisionText = decisionText
+        const cleanText = decisionText
             .replace(/```json/g, '')
             .replace(/```/g, '')
             .trim();
 
         let decision;
         try {
-            decision = JSON.parse(decisionText);
+            decision = JSON.parse(cleanText);
         } catch (parseError) {
             logger.warn('Failed to parse router decision, using defaults', {
                 error: parseError.message,
@@ -116,7 +93,7 @@ Important: Return ONLY the JSON, nothing else!`;
         // Validate decision structure
         decision = validateAndFixDecision(decision);
 
-        logger.debug('AI Router decision', {
+        logger.debug('AI Router decision (Gemini Direct)', {
             mood: decision.mood,
             shouldUseEmbed: decision.shouldUseEmbed,
             confidence: decision.confidence

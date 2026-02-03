@@ -39,13 +39,14 @@ async function handleButtonInteraction(interaction) {
         // Build detailed query - AI will generate detailed response for this option
         const detailQuery = `User memilih: "${optionName}" dari pertanyaan "${originalQuery}". Berikan rekomendasi SPESIFIK, DETAIL, dan KONKRET hanya untuk "${optionName}". Jangan jelaskan opsi lain. Berikan contoh nyata, rekomendasi spesifik, dan tips yang bisa langsung dipraktikkan. Singkat tapi padat.`;
 
-        // Get AI response with detail
+        // Get AI response with detail - use WinterCode (powerful) for details
         const response = await wintercodeClient.chat(detailQuery, {
             userId: user.id,
             username: user.username,
             serverId: channel.guildId,
             history: history,
-            profile: userData?.profile
+            profile: userData?.profile,
+            model: 'gemini-3-flash-preview' // Use powerful model for detail responses
         });
 
         // Check if response is successful
