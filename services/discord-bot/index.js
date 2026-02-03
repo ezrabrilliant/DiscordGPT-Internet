@@ -15,6 +15,8 @@ const { logger } = require('./src/middleware');
 const handleMessage = require('./src/handlers/handleMessage');
 const wintercodeClient = require('./src/services/wintercodeClient');
 const { slashCommands, deploySlashCommands } = require('./src/slashCommands');
+const { handleReactionAdd, handleReactionRemove } = require('./src/handlers/handleReaction');
+const reminderWorker = require('./src/workers/reminderWorker');
 
 // ============================================
 // BOT CLIENT SETUP
@@ -97,6 +99,10 @@ bot.on('ready', async () => {
     wintercodeClient.startHealthChecks();
     logger.info('AI client started', wintercodeClient.getStatus());
 
+    // Start reminder worker
+    reminderWorker.startReminderWorker(bot);
+    logger.info('Reminder worker started', reminderWorker.getWorkerStatus());
+
     // Set initial presence and rotate every 30 seconds
     rotatePresence();
     setInterval(rotatePresence, 30000);
@@ -133,6 +139,10 @@ bot.on('interactionCreate', async (interaction) => {
 
 bot.on('messageCreate', handleMessage);
 
+// Handle message reactions
+bot.on('messageReactionAdd', handleReactionAdd);
+bot.on('messageReactionRemove', handleReactionRemove);
+
 bot.on('error', (error) => {
     logger.error('Discord client error', { error: error.message });
 });
@@ -148,6 +158,7 @@ bot.on('warn', (warning) => {
 process.on('SIGINT', () => {
     logger.info('Received SIGINT, shutting down gracefully...');
     wintercodeClient.stopHealthChecks();
+    reminderWorker.stopReminderWorker();
     bot.destroy();
     process.exit(0);
 });
@@ -155,6 +166,7 @@ process.on('SIGINT', () => {
 process.on('SIGTERM', () => {
     logger.info('Received SIGTERM, shutting down gracefully...');
     wintercodeClient.stopHealthChecks();
+    reminderWorker.stopReminderWorker();
     bot.destroy();
     process.exit(0);
 });

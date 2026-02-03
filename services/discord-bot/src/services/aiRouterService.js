@@ -9,7 +9,7 @@ const { logger } = require('../middleware');
 const ROUTER_API_KEY = process.env.WINTERCODE_API_KEY || 'xxhengkerpromax';
 const ROUTER_API_URL = 'https://ai.wintercode.dev/v1/messages';
 const ROUTER_MODEL = 'gemini-2.5-flash'; // Fast & cheap for routing
-const ROUTER_TIMEOUT = 10000; // 10 seconds
+const ROUTER_TIMEOUT = 30000; // 30 seconds (API can be slow)
 
 /**
  * Make routing decision via AI
@@ -119,13 +119,13 @@ Important: Return ONLY the JSON, nothing else!`;
         return decision;
 
     } catch (error) {
-        logger.error('AI Router failed, using defaults', { error: error.message });
-        return getDefaultDecision();
+        logger.error('AI Router failed, using heuristic fallback', { error: error.message });
+        return makeHeuristicDecision(message, context);
     }
 }
 
 /**
- * Get default/fallback decision
+ * Get default/fallback decision (IMPROVED - with basic heuristic)
  */
 function getDefaultDecision() {
     return {
@@ -141,6 +141,67 @@ function getDefaultDecision() {
         },
         confidence: 0.5,
         reasoning: 'Default: Router failed'
+    };
+}
+
+/**
+ * Quick heuristic decision (no API call) - fallback when router fails
+ */
+function makeHeuristicDecision(message, context) {
+    const lower = message.toLowerCase();
+
+    // Detect mood from emojis/keywords
+    let mood = 'neutral';
+    if (/❤️|😍|🥰|😊|😄|😁|🎉|🔥|⭐|💯|😂|🤣/.test(message)) {
+        mood = 'happy';
+    } else if (/😢|😭|😞|😔|💔/.test(message)) {
+        mood = 'sad';
+    } else if (/😠|😡|🤬|💢|👿|😤/.test(message)) {
+        mood = 'angry';
+    } else if (/🤩|😱|🚀|💥|⚡/.test(message)) {
+        mood = 'excited';
+    } else if (/🤔|😕|😐|❓|❔|bingung|pusing/.test(lower)) {
+        mood = 'confused';
+    } else if (/😰|😨|😱|takut|scared|khawatir|cemas/.test(lower)) {
+        mood = 'worried';
+    }
+
+    // Decide embed based on content
+    const hasImages = context.hasImages;
+    const isRecommendation = /rekomendasi|saran|cara|how|what|list|daftar|tips|jelasin|penjelasan|arti/i.test(lower);
+    const isLong = message.length > 100;
+
+    const shouldUseEmbed = hasImages || (isRecommendation && isLong);
+
+    // Decide follow-up
+    const isQuestion = /\?|apa|siapa|kapan|dimana|kenapa|bagaimana|how|what|when|where|why/i.test(lower);
+    const isUncertain = /kayak|maybe|mungkin|nggak|gak|tidak|kurang/.test(lower);
+    const shouldOfferFollowUp = (isRecommendation || isQuestion) && isUncertain;
+
+    let followUpSuggestions = [];
+    if (shouldOfferFollowUp) {
+        if (lower.includes('laptop') || lower.includes('hp')) {
+            followUpSuggestions = ['Mau rekomendasi dengan budget berapa?', 'Butuh spesifikasi khusus?'];
+        } else if (lower.includes('film') || lower.includes('movie')) {
+            followUpSuggestions = ['Mau genre apa?', 'Prefer yang tahun berapa?'];
+        } else {
+            followUpSuggestions = ['Mau detail lebih lanjut?', 'Ada pertanyaan lain?'];
+        }
+    }
+
+    return {
+        mood,
+        shouldUseEmbed,
+        shouldOfferFollowUp,
+        followUpSuggestions,
+        extractedInfo: {
+            name: null,
+            age: null,
+            location: null,
+            preferences: []
+        },
+        confidence: 0.6,
+        reasoning: 'Heuristic fallback'
     };
 }
 

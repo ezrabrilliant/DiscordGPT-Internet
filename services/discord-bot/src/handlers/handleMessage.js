@@ -17,7 +17,7 @@ const { PREFIX, AI_PREFIXES, MESSAGES } = require('../config');
 const wintercodeClient = require('../services/wintercodeClient');
 const memoryService = require('../services/memoryService');
 const conversationService = require('../services/conversationService');
-const { analyzeMoodFull } = require('../utils/moodAnalyzer');
+const aiRouterService = require('../services/aiRouterService');
 
 // ============================================
 // Helper Functions
@@ -190,30 +190,6 @@ async function buildAIContext(message, query, isDMChannel) {
 }
 
 /**
- * Determine if we should use embed/buttons
- */
-function shouldUseEmbed(query, response, hasImage) {
-    // Use embed for:
-    // - Long responses (>500 chars)
-    if (response.length > 500) return true;
-
-    // - Image analysis
-    if (hasImage) return true;
-
-    // - Factual information or recommendations
-    const factualKeywords = ['rekomendasi', 'saran', 'cara', 'how', 'what', 'list', 'daftar', 'tips'];
-    if (factualKeywords.some(kw => query.toLowerCase().includes(kw))) {
-        return response.length > 300; // Only if medium-long
-    }
-
-    // Use plain text for:
-    // - Short answers
-    // - Casual chat
-    // - Simple questions
-    return false;
-}
-
-/**
  * Process AI chat request
  */
 async function processAIChat(message, query, isDMChannel = false) {
@@ -232,20 +208,51 @@ async function processAIChat(message, query, isDMChannel = false) {
     // Show typing indicator
     await message.channel.sendTyping();
 
-    // Analyze mood
-    const moodAnalysis = analyzeMoodFull(query || '');
-    logger.debug('Mood detected', {
-        user: message.author.tag,
-        mood: moodAnalysis.mood,
-        emoji: moodAnalysis.emoji
-    });
-
-    // Build enhanced context
+    // Build enhanced context first (for router)
     const context = await buildAIContext(message, query, isDMChannel);
 
-    // Add mood to context
-    context.mood = moodAnalysis.mood;
-    context.moodAdjustment = moodAnalysis.promptAdjustment;
+    // Use AI Router for decision making
+    let routingDecision;
+    try {
+        routingDecision = await aiRouterService.makeRoutingDecision(query || '[image]', {
+            username: message.author.username,
+            hasImages: hasImages,
+            isReplying: context.replyTo !== undefined,
+            previousContext: context.threadHistory || 'None'
+        });
+    } catch (error) {
+        logger.debug('AI Router exception, using heuristic fallback', { error: error.message });
+        routingDecision = aiRouterService.makeHeuristicDecision(query || '[image]', {
+            username: message.author.username,
+            hasImages: hasImages,
+            isReplying: context.replyTo !== undefined,
+            previousContext: context.threadHistory || 'None'
+        });
+    }
+
+    logger.debug('AI Router decision', {
+        mood: routingDecision.mood,
+        shouldUseEmbed: routingDecision.shouldUseEmbed,
+        confidence: routingDecision.confidence,
+        reasoning: routingDecision.reasoning
+    });
+
+    // Update user profile with extracted info
+    if (routingDecision.extractedInfo && routingDecision.confidence > 0.6) {
+        try {
+            const profileUpdates = aiRouterService.processExtractedInfo(routingDecision.extractedInfo);
+            if (Object.keys(profileUpdates).length > 0) {
+                await memoryService.updateProfile(message.author.id, profileUpdates);
+                logger.debug('Profile updated from router', { updates: profileUpdates });
+            }
+        } catch (error) {
+            logger.debug('Failed to update profile', { error: error.message });
+        }
+    }
+
+    // Add mood to context from router
+    context.mood = routingDecision.mood;
+    context.moodAdjustment = aiRouterService.getMoodPromptAdjustment(routingDecision.mood);
 
     // Build full query with context
     let fullQuery = query;
@@ -265,8 +272,8 @@ async function processAIChat(message, query, isDMChannel = false) {
     const result = await wintercodeClient.chat(fullQuery, context);
 
     if (result.success) {
-        // Determine if we should use embed
-        const useEmbed = shouldUseEmbed(query, result.response, hasImages);
+        // Use router's decision for embed
+        const useEmbed = routingDecision.shouldUseEmbed;
 
         if (useEmbed) {
             // Send embed response
@@ -274,16 +281,31 @@ async function processAIChat(message, query, isDMChannel = false) {
             const embed = new EmbedBuilder()
                 .setColor(hasImages ? 0x0099FF : 0x00FF00)
                 .setDescription(result.response.slice(0, 4096))
-                .setFooter({ text: `Powered by ${result.provider} ${moodAnalysis.emoji}` });
+                .setFooter({ text: `Powered by ${result.provider} ${aiRouterService.getMoodEmoji(routingDecision.mood)}` });
 
             if (hasImages && images.length > 0) {
                 embed.setImage(images[0].url);
             }
 
+            // Add follow-up buttons if suggested
+            if (routingDecision.shouldOfferFollowUp && routingDecision.followUpSuggestions.length > 0) {
+                // For now, just append suggestions as text
+                // Can be enhanced with actual buttons later
+                const followUpText = '\n\n**Follow-up:**\n' + routingDecision.followUpSuggestions.map((s, i) => `${i + 1}. ${s}`).join('\n');
+                embed.setDescription(result.response.slice(0, 4000) + followUpText.slice(0, 96));
+            }
+
             await message.reply({ embeds: [embed] });
         } else {
             // Plain text response
-            await message.reply(result.response);
+            let responseText = result.response;
+
+            // Add follow-up suggestions if needed
+            if (routingDecision.shouldOfferFollowUp && routingDecision.followUpSuggestions.length > 0) {
+                responseText += '\n\n**Mau lanjut:**\n' + routingDecision.followUpSuggestions.map((s, i) => `${i + 1}. ${s}`).join('\n');
+            }
+
+            await message.reply(responseText);
         }
 
         // Save to memory
@@ -294,7 +316,7 @@ async function processAIChat(message, query, isDMChannel = false) {
                 query || '[image]',
                 result.response,
                 hasImages,
-                moodAnalysis.mood
+                routingDecision.mood
             );
         } catch (error) {
             logger.debug('Failed to save conversation', { error: error.message });
@@ -316,7 +338,7 @@ async function processAIChat(message, query, isDMChannel = false) {
             query: fullQuery,
             reply: result.response,
             hasImage: hasImages,
-            mood: moodAnalysis.mood
+            mood: routingDecision.mood
         });
 
         // Log info
@@ -327,7 +349,8 @@ async function processAIChat(message, query, isDMChannel = false) {
             responseLength: result.response.length,
             isDM: isDMChannel,
             hasImages,
-            mood: moodAnalysis.mood
+            mood: routingDecision.mood,
+            routerConfidence: routingDecision.confidence
         });
     } else {
         // AI failed

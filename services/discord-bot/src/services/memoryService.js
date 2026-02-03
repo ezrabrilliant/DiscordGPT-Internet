@@ -115,6 +115,17 @@ async function addConversation(userId, username, query, reply, hasImage = false,
     try {
         const userData = await getUserData(userId);
 
+        // Ensure stats object exists
+        if (!userData.stats) {
+            userData.stats = {
+                totalMessages: 0,
+                withImages: 0,
+                lastSeen: null,
+                topTopics: [],
+                averageMood: 'neutral'
+            };
+        }
+
         // Add conversation
         userData.conversations.push({
             timestamp: new Date().toISOString(),
@@ -130,8 +141,8 @@ async function addConversation(userId, username, query, reply, hasImage = false,
         }
 
         // Update stats
-        userData.stats.totalMessages++;
-        if (hasImage) userData.stats.withImages++;
+        userData.stats.totalMessages = (userData.stats.totalMessages || 0) + 1;
+        if (hasImage) userData.stats.withImages = (userData.stats.withImages || 0) + 1;
 
         // Save
         await saveUserData(userId, userData);

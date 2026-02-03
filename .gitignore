@@ -91,3 +91,5 @@ services/discord-bot/data/embeddings/
 *.zip
 services/discord-bot/api.md
 .gitignore
+services/discord-bot/cleanup-old-data.js
+services/discord-bot/restore-data.js
