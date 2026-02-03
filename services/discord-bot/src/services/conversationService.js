@@ -151,4 +151,3 @@ module.exports = {
     getThreadStats,
     cleanupExpiredThreads
 };
-};

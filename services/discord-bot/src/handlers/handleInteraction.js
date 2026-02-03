@@ -16,6 +16,18 @@ async function handleButtonInteraction(interaction) {
     const { user, channel, customId } = interaction;
 
     try {
+        logger.debug('Starting button interaction', {
+            userId: user.id,
+            customId: customId
+        });
+
+        // Check if conversationService is loaded
+        logger.debug('Conversation service check', {
+            hasService: !!conversationService,
+            serviceType: typeof conversationService,
+            hasGetThread: typeof conversationService?.getThread
+        });
+
         // Defer reply (show loading state)
         await interaction.deferReply();
 
