@@ -4,8 +4,8 @@
  */
 
 const { EmbedBuilder } = require('discord.js');
-const { wintercodeClient } = require('../services/wintercodeClient');
-const { memoryService } = require('../services/memoryService');
+const wintercodeClient = require('../services/wintercodeClient');
+const memoryService = require('../services/memoryService');
 const conversationService = require('../services/conversationService');
 const { logger } = require('../middleware');
 
@@ -40,11 +40,12 @@ async function handleButtonInteraction(interaction) {
         logger.debug('Defer reply completed');
 
         // Parse customId
-        // Format: "select_option_{userId}_{optionIndex}_{originalQuery}"
-        const parts = customId.split('_');
-        const userId = parts[2];
-        const optionIndex = parseInt(parts[3]);
-        const originalQuery = decodeURIComponent(parts.slice(4).join('_'));
+        // Format: "select_{userId}|{optionIndex}|{optionName}|{originalQuery}"
+        const parts = customId.split('|');
+        const userId = parts[0].replace('select_', '');
+        const optionIndex = parseInt(parts[1]);
+        const optionName = decodeURIComponent(parts[2]);
+        const originalQuery = decodeURIComponent(parts[3]);
 
         logger.info(`Button clicked: ${user.username} selected option ${optionIndex + 1} from query: "${originalQuery}"`);
         logger.debug('Parsed customId', { userId, optionIndex, originalQuery });
@@ -63,7 +64,7 @@ async function handleButtonInteraction(interaction) {
         logger.debug('History formatted', { historyLength: history.length });
 
         // Build detailed query - AI will generate detailed response for this option
-        const detailQuery = `User selected option ${optionIndex + 1} from the question: "${originalQuery}". Provide detailed, comprehensive information specifically about this choice. Include specific recommendations, examples, and actionable advice.`;
+        const detailQuery = `User memilih: "${optionName}" dari pertanyaan "${originalQuery}". Berikan rekomendasi SPESIFIK, DETAIL, dan KONKRET hanya untuk "${optionName}". Jangan jelaskan opsi lain. Berikan contoh nyata, rekomendasi spesifik, dan tips yang bisa langsung dipraktikkan. Singkat tapi padat.`;
 
         // Get AI response with detail
         const response = await wintercodeClient.chat(detailQuery, {
@@ -74,13 +75,18 @@ async function handleButtonInteraction(interaction) {
             profile: userData?.profile
         });
 
+        // Check if response is successful
+        if (!response.success) {
+            throw new Error(response.error || 'AI response failed');
+        }
+
         // Delete the defer reply (loading state)
         await interaction.deleteReply();
 
         // Send embed with detailed response
         const embed = new EmbedBuilder()
             .setTitle(`✅ Pilihan ${optionIndex + 1}`)
-            .setDescription(response.reply.slice(0, 4096))
+            .setDescription(response.response.slice(0, 4096))
             .setColor('#00ff88')
             .setFooter({ text: `Powered by ${response.provider}` })
             .setTimestamp();
@@ -90,14 +96,14 @@ async function handleButtonInteraction(interaction) {
         // Save to memory
         await memoryService.addConversation(user.id, {
             query: `[Selected option ${optionIndex + 1}] ${originalQuery}`,
-            reply: response.reply,
+            reply: response.response,
             hasImage: false,
             mood: 'neutral'
         });
 
         // Update conversation thread
         conversationService.addToThread(user.id, 'user', `[Selected option ${optionIndex + 1}] ${originalQuery}`);
-        conversationService.addToThread(user.id, 'assistant', response.reply);
+        conversationService.addToThread(user.id, 'assistant', response.response);
 
         logger.info(`Button interaction completed for ${user.username}`);
 

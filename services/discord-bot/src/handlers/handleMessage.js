@@ -287,7 +287,8 @@ async function processAIChat(message, query, isDMChannel = false) {
         // Build button row
         const buttonRow = new ActionRowBuilder();
         routingDecision.buttonOptions.forEach((option, index) => {
-            const customId = `select_option_${message.author.id}_${index}_${encodeURIComponent(query)}`;
+            // Use pipe delimiter to avoid issues with underscores in option names
+            const customId = `select_${message.author.id}|${index}|${encodeURIComponent(option)}|${encodeURIComponent(query)}`;
             buttonRow.addComponents(
                 new ButtonBuilder()
                     .setCustomId(customId)
