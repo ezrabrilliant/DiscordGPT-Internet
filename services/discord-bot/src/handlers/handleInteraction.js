@@ -27,7 +27,7 @@ async function handleButtonInteraction(interaction) {
         const optionName = decodeURIComponent(parts[2]);
         const originalQuery = decodeURIComponent(parts[3]);
 
-        logger.info(`Button clicked: ${user.username} selected "${optionName}" from query: "${originalQuery}"`);
+        logger.info(`Button clicked: ${user.username} selected "${optionName}" (optionIndex: ${optionIndex}, optionIndex+1: ${optionIndex + 1}) from query: "${originalQuery}"`);
 
         // Get conversation context
         const thread = conversationService.getThread(user.id);
@@ -296,9 +296,9 @@ async function handlePageNavigation(interaction) {
         }
 
         // Create new embed and buttons
-        const createPageEmbed = (pageText, pageNum, totalPages) => {
+        const createPageEmbed = (pageText, pageNum, totalPages, displayOptionNum) => {
             return new EmbedBuilder()
-                .setTitle(`✅ Pilihan ${optionIndex + 1}${totalPages > 1 ? ` (Halaman ${pageNum}/${totalPages})` : ''}`)
+                .setTitle(`✅ Pilihan ${displayOptionNum}${totalPages > 1 ? ` (Halaman ${pageNum}/${totalPages})` : ''}`)
                 .setDescription(pageText.slice(0, 4096))
                 .setColor('#00ff88')
                 .setFooter({ text: `Powered by ${cacheData.provider}${totalPages > 1 ? ` • Halaman ${pageNum}/${totalPages}` : ''}` })
