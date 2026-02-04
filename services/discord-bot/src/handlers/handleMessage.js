@@ -344,18 +344,86 @@ async function processAIChat(message, query, isDMChannel = false) {
         const useEmbed = routingDecision.shouldUseEmbed;
 
         if (useEmbed) {
-            // Send embed response
-            const { EmbedBuilder } = require('discord.js');
-            const embed = new EmbedBuilder()
-                .setColor(hasImages ? 0x0099FF : 0x00FF00)
-                .setDescription(result.response.slice(0, 4096))
-                .setFooter({ text: `Powered by ${result.provider} ${aiRouterService.getMoodEmoji(routingDecision.mood)}` });
-
-            if (hasImages && images.length > 0) {
-                embed.setImage(images[0].url);
+            // Send embed response with pagination support
+            const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+            
+            // Split response into pages by ### headers
+            let finalPages = [];
+            const hashPattern = /\n###\s*/;
+            
+            if (hashPattern.test(result.response)) {
+                const sections = result.response.split(hashPattern);
+                if (sections[0].trim()) finalPages.push(sections[0].trim());
+                for (let i = 1; i < sections.length; i++) {
+                    const sectionText = sections[i].trim();
+                    if (sectionText) finalPages.push('### ' + sectionText);
+                }
+            } else {
+                finalPages = [result.response];
             }
-
-            await message.reply({ embeds: [embed] });
+            
+            // Function to create embed
+            const createPageEmbed = (pageText, pageNum, totalPages) => {
+                const embed = new EmbedBuilder()
+                    .setColor(hasImages ? 0x0099FF : 0x00FF00)
+                    .setDescription(pageText.slice(0, 4096))
+                    .setFooter({ text: `Powered by ${result.provider} ${aiRouterService.getMoodEmoji(routingDecision.mood)}${totalPages > 1 ? ` • Page ${pageNum}/${totalPages}` : ''}` });
+                
+                if (hasImages && images.length > 0) {
+                    embed.setImage(images[0].url);
+                }
+                
+                return embed;
+            };
+            
+            // Create navigation buttons if multiple pages
+            const createNavigationButtons = (currentPage, totalPages) => {
+                const row = new ActionRowBuilder();
+                row.addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`msg_page_prev_${message.id}`)
+                        .setLabel('◀ Prev')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setDisabled(currentPage === 0)
+                );
+                row.addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`msg_page_indicator_${message.id}`)
+                        .setLabel(`${currentPage + 1}/${totalPages}`)
+                        .setStyle(ButtonStyle.Primary)
+                        .setDisabled(true)
+                );
+                row.addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`msg_page_next_${message.id}`)
+                        .setLabel('Next ▶')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setDisabled(currentPage === totalPages - 1)
+                );
+                return row;
+            };
+            
+            // Send first page
+            const firstEmbed = createPageEmbed(finalPages[0], 1, finalPages.length);
+            const components = finalPages.length > 1 ? [createNavigationButtons(0, finalPages.length)] : [];
+            
+            const sentMessage = await message.reply({ embeds: [firstEmbed], components });
+            
+            // Store pages for navigation if multiple pages
+            if (finalPages.length > 1) {
+                const pageCache = require('./pageCache');
+                pageCache.setPages(sentMessage.id, {
+                    userId: message.author.id,
+                    messageId: message.id,
+                    pages: finalPages,
+                    totalPages: finalPages.length,
+                    provider: result.provider,
+                    moodEmoji: aiRouterService.getMoodEmoji(routingDecision.mood),
+                    hasImages,
+                    image: hasImages && images.length > 0 ? images[0].url : null,
+                    timestamp: Date.now()
+                });
+            }
         } else {
             // Plain text response
             let responseText = result.response;

@@ -81,13 +81,11 @@ Important: Return ONLY the JSON, nothing else!`;
         try {
             decision = JSON.parse(cleanText);
         } catch (parseError) {
-            logger.warn('Failed to parse router decision, using defaults', {
+            logger.warn('Failed to parse router decision from Gemini Direct', {
                 error: parseError.message,
                 response: decisionText.substring(0, 200)
             });
-
-            // Return safe defaults
-            decision = getDefaultDecision();
+            throw new Error('Parse failed, trying fallback');
         }
 
         // Validate decision structure
@@ -102,9 +100,127 @@ Important: Return ONLY the JSON, nothing else!`;
         return decision;
 
     } catch (error) {
-        logger.error('AI Router failed, using heuristic fallback', { error: error.message });
-        return makeHeuristicDecision(message, context);
+        logger.warn('Gemini Direct failed for routing, trying WinterCode fallback', { 
+            error: error.message 
+        });
+
+        // Fallback 1: Try WinterCode
+        try {
+            const wintercodeDecision = await makeRoutingDecisionViaWinterCode(message, context);
+            logger.debug('AI Router decision (WinterCode fallback)', {
+                mood: wintercodeDecision.mood,
+                shouldUseEmbed: wintercodeDecision.shouldUseEmbed,
+                confidence: wintercodeDecision.confidence
+            });
+            return wintercodeDecision;
+        } catch (fallbackError) {
+            logger.warn('WinterCode routing failed, using heuristic fallback', { 
+                error: fallbackError.message 
+            });
+            
+            // Fallback 2: Heuristic
+            return makeHeuristicDecision(message, context);
+        }
     }
+}
+
+/**
+ * Make routing decision via WinterCode (fallback)
+ */
+async function makeRoutingDecisionViaWinterCode(message, context) {
+    const WINTERCODE_API_KEY = process.env.WINTERCODE_API_KEY || 'xxhengkerpromax';
+    const WINTERCODE_API_URL = 'https://ai.wintercode.dev/v1/messages';
+
+    const prompt = buildRouterPrompt(message, context);
+
+    const response = await fetch(WINTERCODE_API_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': WINTERCODE_API_KEY,
+        },
+        body: JSON.stringify({
+            model: 'gemini-2.5-flash',
+            messages: [
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+            temperature: 0.3,
+            max_output_tokens: 1000,
+        }),
+        signal: AbortSignal.timeout(ROUTER_TIMEOUT),
+    });
+
+    if (!response.ok) {
+        throw new Error(`WinterCode API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // Extract text from response
+    let decisionText = '';
+    if (data.content && data.content.length > 0) {
+        const textContent = data.content.find(item => item.type === 'text');
+        decisionText = textContent?.text || '{}';
+    }
+
+    // Parse JSON
+    const cleanText = decisionText
+        .replace(/```json/g, '')
+        .replace(/```/g, '')
+        .trim();
+
+    let decision = JSON.parse(cleanText);
+    return validateAndFixDecision(decision);
+}
+
+/**
+ * Build router prompt (extracted for reuse)
+ */
+function buildRouterPrompt(message, context) {
+    return `You are an intelligent AI router. Analyze the user's message and return a JSON decision.
+
+User Message: "${message}"
+
+Context:
+- Username: ${context.username || 'Unknown'}
+- Has Images: ${context.hasImages ? 'Yes' : 'No'}
+- Is Replying: ${context.isReplying ? 'Yes' : 'No'}
+- Previous Context: ${context.previousContext || 'None'}
+
+Return ONLY a valid JSON (no markdown, no extra text) with this exact structure:
+{
+  "mood": "happy|sad|angry|excited|confused|worried|neutral",
+  "shouldUseEmbed": true/false,
+  "shouldUseButtons": true/false,
+  "buttonOptions": ["Option 1", "Option 2", "Option 3"] or [],
+  "extractedInfo": {
+    "name": null or "extracted name",
+    "age": null or "extracted age",
+    "location": null or "extracted location",
+    "preferences": [] or ["preference1", "preference2"]
+  },
+  "confidence": 0.0-1.0,
+  "reasoning": "brief explanation"
+}
+
+Rules:
+1. MOOD: Detect from emojis, keywords, and tone
+2. EMBED: Use for long responses, image analysis, structured info, recommendations. Use plain text for casual chat.
+3. BUTTONS: Use buttons when user asks for recommendations and you can provide 2-4 distinct options to choose from. Each button should represent a different category/choice.
+4. BUTTON OPTIONS: Provide 2-4 clear, distinct options that the user can choose from. Each option should be short (under 30 chars).
+5. EXTRACTED INFO: Extract any personal info mentioned (name, age, location, preferences)
+6. CONFIDENCE: How confident are you in this analysis? (0.0-1.0)
+7. REASONING: Brief explanation of your decision
+
+Examples when to use buttons:
+- "rekomendasi laptop" → ["Budget 4-6jt", "Mid-Range 10-13jt", "High-End 20jt+"]
+- "rekomendasi film" → ["Horror", "Action", "Comedy", "Romance"]
+- "rekomendasi makanan" → ["Pedas", "Manis", "Asin", "Tradisional"]
+
+Important: Return ONLY the JSON, nothing else!`;
 }
 
 /**
@@ -151,10 +267,10 @@ function makeHeuristicDecision(message, context) {
 
     // Decide embed based on content
     const hasImages = context.hasImages;
-    const isRecommendation = /rekomendasi|saran|cara|how|what|list|daftar|tips|jelasin|penjelasan|arti/i.test(lower);
+    const isRecommendation = /rekomendasi|saran|cara|how|what|list|daftar|tips|jelasin|penjelasan|arti|saham|laptop|hp|pc|komputer|film|movie|makanan|kuliner|wisata|travel|game|gaming|buku|novel|musik|lagu/i.test(lower);
     const isLong = message.length > 100;
 
-    const shouldUseEmbed = hasImages || (isRecommendation && isLong);
+    const shouldUseEmbed = hasImages || (isRecommendation && isLong) || isRecommendation; // Always embed for recommendations!
 
     // Decide buttons - use buttons for recommendations, let AI router generate options
     let shouldUseButtons = false;
