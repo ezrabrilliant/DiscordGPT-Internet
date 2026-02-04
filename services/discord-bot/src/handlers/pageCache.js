@@ -4,6 +4,7 @@
  */
 
 const pageCache = new Map();
+const queryCache = new Map(); // Separate cache for user queries
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 /**
@@ -19,6 +20,38 @@ function setPages(messageId, data) {
     setTimeout(() => {
         pageCache.delete(messageId);
     }, CACHE_TTL);
+}
+
+/**
+ * Store user query for button interactions
+ */
+function setQuery(userId, query) {
+    queryCache.set(userId, {
+        query,
+        expiresAt: Date.now() + CACHE_TTL
+    });
+    
+    // Auto cleanup after TTL
+    setTimeout(() => {
+        queryCache.delete(userId);
+    }, CACHE_TTL);
+}
+
+/**
+ * Get user query
+ */
+function getQuery(userId) {
+    const data = queryCache.get(userId);
+    
+    if (!data) return null;
+    
+    // Check if expired
+    if (Date.now() > data.expiresAt) {
+        queryCache.delete(userId);
+        return null;
+    }
+    
+    return data.query;
 }
 
 /**
@@ -50,7 +83,8 @@ function clearPages(messageId) {
  */
 function getStats() {
     return {
-        size: pageCache.size,
+        pageCache: pageCache.size,
+        queryCache: queryCache.size,
         entries: Array.from(pageCache.entries()).map(([id, data]) => ({
             messageId: id,
             userId: data.userId,
@@ -62,6 +96,8 @@ function getStats() {
 
 module.exports = {
     setPages,
+    setQuery,
+    getQuery,
     getPages,
     clearPages,
     getStats

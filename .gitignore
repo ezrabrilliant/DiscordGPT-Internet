@@ -93,3 +93,4 @@ services/discord-bot/api.md
 .gitignore
 services/discord-bot/cleanup-old-data.js
 services/discord-bot/restore-data.js
+services/discord-bot/discord-bot.rar

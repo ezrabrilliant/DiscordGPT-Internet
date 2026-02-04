@@ -19,6 +19,9 @@ const { slashCommands, deploySlashCommands } = require('./src/slashCommands');
 const { handleReactionAdd, handleReactionRemove } = require('./src/handlers/handleReaction');
 const reminderWorker = require('./src/workers/reminderWorker');
 
+// Enable console logging to file
+require('./console-logger');
+
 // ============================================
 // BOT CLIENT SETUP
 // ============================================

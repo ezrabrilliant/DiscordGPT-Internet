@@ -20,12 +20,16 @@ async function handleButtonInteraction(interaction) {
         await interaction.deferReply();
 
         // Parse customId
-        // Format: "select_{userId}|{optionIndex}|{optionName}|{originalQuery}"
+        // Format: "select_{userId}|{optionIndex}|{optionName}"
+        // Note: query NOT in customId (avoid 64 char limit), get from cache
         const parts = customId.split('|');
         const userId = parts[0].replace('select_', '');
         const optionIndex = parseInt(parts[1]);
         const optionName = decodeURIComponent(parts[2]);
-        const originalQuery = decodeURIComponent(parts[3]);
+
+        // Get original query from cache
+        const pageCache = require('./pageCache');
+        const originalQuery = pageCache.getQuery(user.id) || 'rekomendasi';
 
         logger.info(`Button clicked: ${user.username} selected "${optionName}" (optionIndex: ${optionIndex}, optionIndex+1: ${optionIndex + 1}) from query: "${originalQuery}"`);
 

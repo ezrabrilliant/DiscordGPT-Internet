@@ -288,7 +288,8 @@ async function processAIChat(message, query, isDMChannel = false) {
         const buttonRow = new ActionRowBuilder();
         routingDecision.buttonOptions.forEach((option, index) => {
             // Use pipe delimiter to avoid issues with underscores in option names
-            const customId = `select_${message.author.id}|${index}|${encodeURIComponent(option)}|${encodeURIComponent(query)}`;
+            // Note: customId max 64 chars, so we need to be careful
+            const customId = `select_${message.author.id}|${index}|${encodeURIComponent(option)}`;
             buttonRow.addComponents(
                 new ButtonBuilder()
                     .setCustomId(customId)
@@ -298,6 +299,10 @@ async function processAIChat(message, query, isDMChannel = false) {
         });
 
         await message.reply({ embeds: [embed], components: [buttonRow] });
+
+        // Store query in cache for button interactions
+        const pageCache = require('./pageCache');
+        pageCache.setQuery(message.author.id, query);
 
         // Save to memory
         await memoryService.addConversation(
@@ -360,7 +365,21 @@ async function processAIChat(message, query, isDMChannel = false) {
                 responseText += '\n\n**Mau lanjut:**\n' + routingDecision.followUpSuggestions.map((s, i) => `${i + 1}. ${s}`).join('\n');
             }
 
-            await message.reply(responseText);
+            // Discord max length for plain text is 2000 chars
+            const MAX_LENGTH = 2000;
+            
+            if (responseText.length > MAX_LENGTH) {
+                // Response too long, switch to embed automatically
+                const { EmbedBuilder } = require('discord.js');
+                const embed = new EmbedBuilder()
+                    .setColor(0x00FF00)
+                    .setDescription(responseText.slice(0, 4096))
+                    .setFooter({ text: `Powered by ${result.provider} ${aiRouterService.getMoodEmoji(routingDecision.mood)}` });
+                
+                await message.reply({ embeds: [embed] });
+            } else {
+                await message.reply(responseText);
+            }
         }
 
         // Save to memory
