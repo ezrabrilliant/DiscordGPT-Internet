@@ -289,7 +289,7 @@ async function processAIChat(message, query, isDMChannel = false) {
         routingDecision.buttonOptions.forEach((option, index) => {
             // Use pipe delimiter to avoid issues with underscores in option names
             // Note: customId max 64 chars, so we need to be careful
-            const customId = `select_${message.author.id}|${index}|${encodeURIComponent(option)}`;
+            const customId = `ezb_select_${message.author.id}|${index}|${encodeURIComponent(option)}`;
             buttonRow.addComponents(
                 new ButtonBuilder()
                     .setCustomId(customId)
@@ -381,21 +381,21 @@ async function processAIChat(message, query, isDMChannel = false) {
                 const row = new ActionRowBuilder();
                 row.addComponents(
                     new ButtonBuilder()
-                        .setCustomId(`msg_page_prev_${message.id}`)
+                        .setCustomId(`ezb_msg_page_prev_${message.id}`)
                         .setLabel('◀ Prev')
                         .setStyle(ButtonStyle.Secondary)
                         .setDisabled(currentPage === 0)
                 );
                 row.addComponents(
                     new ButtonBuilder()
-                        .setCustomId(`msg_page_indicator_${message.id}`)
+                        .setCustomId(`ezb_msg_page_ind_${message.id}`)
                         .setLabel(`${currentPage + 1}/${totalPages}`)
                         .setStyle(ButtonStyle.Primary)
                         .setDisabled(true)
                 );
                 row.addComponents(
                     new ButtonBuilder()
-                        .setCustomId(`msg_page_next_${message.id}`)
+                        .setCustomId(`ezb_msg_page_next_${message.id}`)
                         .setLabel('Next ▶')
                         .setStyle(ButtonStyle.Secondary)
                         .setDisabled(currentPage === totalPages - 1)

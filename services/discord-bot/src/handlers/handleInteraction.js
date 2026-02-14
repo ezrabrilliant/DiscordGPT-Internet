@@ -20,16 +20,16 @@ async function handleButtonInteraction(interaction) {
         await interaction.deferReply();
 
         // Parse customId
-        // Format: "select_{userId}|{optionIndex}|{optionName}"
+        // Format: "ezb_select_{userId}|{optionIndex}|{optionName}"
         // Note: query NOT in customId (avoid 64 char limit), get from cache
         const parts = customId.split('|');
-        const userId = parts[0].replace('select_', '');
+        const userId = parts[0].replace('ezb_select_', '');
         const optionIndex = parseInt(parts[1]);
-        const optionName = decodeURIComponent(parts[2]);
+        const optionName = decodeURIComponent(parts[2] || 'unknown');
 
         // Get original query from cache
         const pageCache = require('./pageCache');
-        const originalQuery = pageCache.getQuery(user.id) || 'rekomendasi';
+        const originalQuery = (await pageCache.getQuery(user.id)) || 'rekomendasi';
 
         logger.info(`Button clicked: ${user.username} selected "${optionName}" (optionIndex: ${optionIndex}, optionIndex+1: ${optionIndex + 1}) from query: "${originalQuery}"`);
 
@@ -123,7 +123,7 @@ async function handleButtonInteraction(interaction) {
             // Previous button
             row.addComponents(
                 new ButtonBuilder()
-                    .setCustomId(`page_prev_${user.id}_${optionIndex}`)
+                    .setCustomId(`ezb_page_prev_${user.id}_${optionIndex}`)
                     .setLabel('◀ Prev')
                     .setStyle(ButtonStyle.Secondary)
                     .setDisabled(currentPage === 0)
@@ -132,7 +132,7 @@ async function handleButtonInteraction(interaction) {
             // Page indicator
             row.addComponents(
                 new ButtonBuilder()
-                    .setCustomId(`page_indicator_${user.id}_${optionIndex}`)
+                    .setCustomId(`ezb_page_ind_${user.id}_${optionIndex}`)
                     .setLabel(`${currentPage + 1}/${totalPages}`)
                     .setStyle(ButtonStyle.Primary)
                     .setDisabled(true)
@@ -141,7 +141,7 @@ async function handleButtonInteraction(interaction) {
             // Next button
             row.addComponents(
                 new ButtonBuilder()
-                    .setCustomId(`page_next_${user.id}_${optionIndex}`)
+                    .setCustomId(`ezb_page_next_${user.id}_${optionIndex}`)
                     .setLabel('Next ▶')
                     .setStyle(ButtonStyle.Secondary)
                     .setDisabled(currentPage === totalPages - 1)
@@ -249,14 +249,20 @@ async function handleButtonInteraction(interaction) {
  * Main interaction handler
  */
 async function handleInteraction(interaction) {
-    // Handle pagination buttons
-    if (interaction.isButton() && (interaction.customId.startsWith('page_prev_') || interaction.customId.startsWith('page_next_'))) {
+    // Handle recommendation pagination buttons (page_prev_, page_next_)
+    if (interaction.isButton() && (interaction.customId.startsWith('ezb_page_prev_') || interaction.customId.startsWith('ezb_page_next_'))) {
         await handlePageNavigation(interaction);
         return;
     }
 
-    // Handle selection buttons
-    if (interaction.isButton()) {
+    // Handle embed pagination buttons from handleMessage (ezb_msg_page_prev_, ezb_msg_page_next_)
+    if (interaction.isButton() && (interaction.customId.startsWith('ezb_msg_page_prev_') || interaction.customId.startsWith('ezb_msg_page_next_'))) {
+        await handleMsgPageNavigation(interaction);
+        return;
+    }
+
+    // Handle selection buttons (ezb_select_)
+    if (interaction.isButton() && interaction.customId.startsWith('ezb_select_')) {
         await handleButtonInteraction(interaction);
         return;
     }
@@ -282,10 +288,11 @@ async function handlePageNavigation(interaction) {
             return;
         }
 
-        // Parse customId
+        // Parse customId: "ezb_page_prev_{userId}_{optionIndex}" or "ezb_page_next_{userId}_{optionIndex}"
+        // Split: [ezb, page, prev/next, userId, optionIndex]
         const parts = customId.split('_');
-        const direction = parts[1]; // 'prev' or 'next'
-        const optionIndex = parseInt(parts[2]);
+        const direction = parts[2]; // 'prev' or 'next'
+        const optionIndex = parseInt(parts[parts.length - 1]); // last part is always optionIndex
 
         // Get current page from message embed title
         const currentEmbed = message.embeds[0];
@@ -315,7 +322,7 @@ async function handlePageNavigation(interaction) {
             
             row.addComponents(
                 new ButtonBuilder()
-                    .setCustomId(`page_prev_${user.id}_${optionIndex}`)
+                    .setCustomId(`ezb_page_prev_${user.id}_${optionIndex}`)
                     .setLabel('◀ Prev')
                     .setStyle(ButtonStyle.Secondary)
                     .setDisabled(currentPageNum === 0)
@@ -323,7 +330,7 @@ async function handlePageNavigation(interaction) {
             
             row.addComponents(
                 new ButtonBuilder()
-                    .setCustomId(`page_indicator_${user.id}_${optionIndex}`)
+                    .setCustomId(`ezb_page_ind_${user.id}_${optionIndex}`)
                     .setLabel(`${currentPageNum + 1}/${totalPages}`)
                     .setStyle(ButtonStyle.Primary)
                     .setDisabled(true)
@@ -331,7 +338,7 @@ async function handlePageNavigation(interaction) {
             
             row.addComponents(
                 new ButtonBuilder()
-                    .setCustomId(`page_next_${user.id}_${optionIndex}`)
+                    .setCustomId(`ezb_page_next_${user.id}_${optionIndex}`)
                     .setLabel('Next ▶')
                     .setStyle(ButtonStyle.Secondary)
                     .setDisabled(currentPageNum === totalPages - 1)
@@ -340,7 +347,9 @@ async function handlePageNavigation(interaction) {
             return row;
         };
 
-        const newEmbed = createPageEmbed(cacheData.pages[newPage], newPage + 1, cacheData.totalPages, cacheData.displayOptionNum || cacheData.optionIndex + 1);
+        // Use displayOptionNum from cache, fallback to parsed optionIndex + 1, fallback to '?'
+        const displayNum = cacheData.displayOptionNum || (!isNaN(optionIndex) ? optionIndex + 1 : '?');
+        const newEmbed = createPageEmbed(cacheData.pages[newPage], newPage + 1, cacheData.totalPages, displayNum);
         const newButtons = createNavigationButtons(newPage, cacheData.totalPages);
 
         await message.edit({
@@ -349,12 +358,94 @@ async function handlePageNavigation(interaction) {
         });
 
         logger.info(`Page navigation: ${user.username} moved to page ${newPage + 1}/${cacheData.totalPages}`, {
-            displayOptionNum: cacheData.displayOptionNum,
+            displayOptionNum: displayNum,
             cacheKeys: Object.keys(cacheData)
         });
 
     } catch (error) {
         logger.error('Error handling page navigation', { error: error.message });
+    }
+}
+
+/**
+ * Handle msg page navigation (Prev/Next for embed responses from handleMessage)
+ */
+async function handleMsgPageNavigation(interaction) {
+    const { user, message, customId } = interaction;
+
+    try {
+        await interaction.deferUpdate();
+
+        const pageCache = require('./pageCache');
+        const cacheData = pageCache.getPages(message.id);
+
+        if (!cacheData) {
+            await interaction.editReply({
+                content: '❌ Data halaman sudah kadaluarsa. Silakan tanya lagi.',
+                components: []
+            });
+            return;
+        }
+
+        // Parse direction from customId: "ezb_msg_page_prev_{messageId}" or "ezb_msg_page_next_{messageId}"
+        const direction = customId.includes('_prev_') ? 'prev' : 'next';
+
+        // Get current page from embed footer
+        const currentEmbed = message.embeds[0];
+        const footerMatch = currentEmbed.footer?.text?.match(/Page (\d+)\/(\d+)/);
+        const currentPage = footerMatch ? parseInt(footerMatch[1]) - 1 : 0;
+
+        // Calculate new page
+        let newPage = currentPage;
+        if (direction === 'prev' && currentPage > 0) {
+            newPage = currentPage - 1;
+        } else if (direction === 'next' && currentPage < cacheData.totalPages - 1) {
+            newPage = currentPage + 1;
+        }
+
+        // Recreate embed (same style as handleMessage.js)
+        const newEmbed = new EmbedBuilder()
+            .setColor(cacheData.hasImages ? 0x0099FF : 0x00FF00)
+            .setDescription(cacheData.pages[newPage].slice(0, 4096))
+            .setFooter({ text: `Powered by ${cacheData.provider} ${cacheData.moodEmoji || ''}${cacheData.totalPages > 1 ? ` • Page ${newPage + 1}/${cacheData.totalPages}` : ''}` });
+
+        if (cacheData.image) {
+            newEmbed.setImage(cacheData.image);
+        }
+
+        // Recreate navigation buttons
+        const row = new ActionRowBuilder();
+        row.addComponents(
+            new ButtonBuilder()
+                .setCustomId(`ezb_msg_page_prev_${cacheData.messageId}`)
+                .setLabel('◀ Prev')
+                .setStyle(ButtonStyle.Secondary)
+                .setDisabled(newPage === 0)
+        );
+        row.addComponents(
+            new ButtonBuilder()
+                .setCustomId(`ezb_msg_page_ind_${cacheData.messageId}`)
+                .setLabel(`${newPage + 1}/${cacheData.totalPages}`)
+                .setStyle(ButtonStyle.Primary)
+                .setDisabled(true)
+        );
+        row.addComponents(
+            new ButtonBuilder()
+                .setCustomId(`ezb_msg_page_next_${cacheData.messageId}`)
+                .setLabel('Next ▶')
+                .setStyle(ButtonStyle.Secondary)
+                .setDisabled(newPage === cacheData.totalPages - 1)
+        );
+
+        await message.edit({
+            embeds: [newEmbed],
+            components: [row]
+        });
+
+        logger.info(`Msg page navigation: ${user.username} moved to page ${newPage + 1}/${cacheData.totalPages}`);
+
+    } catch (error) {
+        logger.error('Error handling msg page navigation', { error: error.message });
     }
 }
 

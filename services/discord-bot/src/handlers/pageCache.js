@@ -1,81 +1,191 @@
 /**
- * Page Cache Service
+ * Page Cache Service - MongoDB backed with in-memory fallback
  * Stores paginated embed data for navigation buttons
  */
 
-const pageCache = new Map();
-const queryCache = new Map(); // Separate cache for user queries
-const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+const { MongoClient } = require('mongodb');
+const { MONGO_URI } = require('../config/env');
+
+// In-memory fallback (used when MongoDB is not available)
+const memoryPageCache = new Map();
+const memoryQueryCache = new Map();
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+// MongoDB
+let db = null;
+
+/**
+ * Connect to MongoDB
+ */
+async function connectMongo() {
+    if (!MONGO_URI) {
+        console.log('[PageCache] No MONGO_URI, using in-memory cache only');
+        return;
+    }
+
+    try {
+        const client = new MongoClient(MONGO_URI);
+        await client.connect();
+        db = client.db('ezrabot'); // separate database from modchecker
+
+        // Create indexes
+        await db.collection('pagecache').createIndex({ messageId: 1 }, { unique: true });
+        await db.collection('pagecache').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL index
+        await db.collection('querycache').createIndex({ userId: 1 }, { unique: true });
+        await db.collection('querycache').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL index
+
+        console.log('[PageCache] MongoDB connected (database: ezrabot)');
+    } catch (err) {
+        console.error('[PageCache] MongoDB connection failed, using in-memory fallback:', err.message);
+        db = null;
+    }
+}
 
 /**
  * Store pages for a message
  */
-function setPages(messageId, data) {
-    pageCache.set(messageId, {
+async function setPages(messageId, data) {
+    const expiresAt = new Date(Date.now() + CACHE_TTL);
+
+    // Always store in memory for fast access
+    memoryPageCache.set(messageId, {
         ...data,
         expiresAt: Date.now() + CACHE_TTL
     });
-    
-    // Auto cleanup after TTL
+
+    // Auto cleanup memory after TTL
     setTimeout(() => {
-        pageCache.delete(messageId);
+        memoryPageCache.delete(messageId);
     }, CACHE_TTL);
+
+    // Also persist to MongoDB
+    if (db) {
+        try {
+            await db.collection('pagecache').updateOne(
+                { messageId },
+                { $set: { messageId, ...data, expiresAt } },
+                { upsert: true }
+            );
+        } catch (err) {
+            console.error('[PageCache] MongoDB setPages error:', err.message);
+        }
+    }
 }
 
 /**
  * Store user query for button interactions
  */
-function setQuery(userId, query) {
-    queryCache.set(userId, {
+async function setQuery(userId, query) {
+    const expiresAt = new Date(Date.now() + CACHE_TTL);
+
+    // Memory
+    memoryQueryCache.set(userId, {
         query,
         expiresAt: Date.now() + CACHE_TTL
     });
-    
-    // Auto cleanup after TTL
+
     setTimeout(() => {
-        queryCache.delete(userId);
+        memoryQueryCache.delete(userId);
     }, CACHE_TTL);
+
+    // MongoDB
+    if (db) {
+        try {
+            await db.collection('querycache').updateOne(
+                { userId },
+                { $set: { userId, query, expiresAt } },
+                { upsert: true }
+            );
+        } catch (err) {
+            console.error('[PageCache] MongoDB setQuery error:', err.message);
+        }
+    }
 }
 
 /**
  * Get user query
  */
-function getQuery(userId) {
-    const data = queryCache.get(userId);
-    
-    if (!data) return null;
-    
-    // Check if expired
-    if (Date.now() > data.expiresAt) {
-        queryCache.delete(userId);
-        return null;
+async function getQuery(userId) {
+    // Try memory first
+    const memData = memoryQueryCache.get(userId);
+    if (memData) {
+        if (Date.now() > memData.expiresAt) {
+            memoryQueryCache.delete(userId);
+        } else {
+            return memData.query;
+        }
     }
-    
-    return data.query;
+
+    // Fallback to MongoDB
+    if (db) {
+        try {
+            const doc = await db.collection('querycache').findOne({ userId });
+            if (doc) {
+                // Re-populate memory cache
+                memoryQueryCache.set(userId, {
+                    query: doc.query,
+                    expiresAt: doc.expiresAt.getTime()
+                });
+                return doc.query;
+            }
+        } catch (err) {
+            console.error('[PageCache] MongoDB getQuery error:', err.message);
+        }
+    }
+
+    return null;
 }
 
 /**
  * Get pages for a message
  */
-function getPages(messageId) {
-    const data = pageCache.get(messageId);
-    
-    if (!data) return null;
-    
-    // Check if expired
-    if (Date.now() > data.expiresAt) {
-        pageCache.delete(messageId);
-        return null;
+async function getPages(messageId) {
+    // Try memory first
+    const memData = memoryPageCache.get(messageId);
+    if (memData) {
+        if (Date.now() > memData.expiresAt) {
+            memoryPageCache.delete(messageId);
+        } else {
+            return memData;
+        }
     }
-    
-    return data;
+
+    // Fallback to MongoDB
+    if (db) {
+        try {
+            const doc = await db.collection('pagecache').findOne({ messageId });
+            if (doc) {
+                // Remove MongoDB internal fields
+                delete doc._id;
+                // Re-populate memory cache
+                const cacheData = {
+                    ...doc,
+                    expiresAt: doc.expiresAt.getTime()
+                };
+                memoryPageCache.set(messageId, cacheData);
+                return cacheData;
+            }
+        } catch (err) {
+            console.error('[PageCache] MongoDB getPages error:', err.message);
+        }
+    }
+
+    return null;
 }
 
 /**
  * Clear pages for a message
  */
-function clearPages(messageId) {
-    pageCache.delete(messageId);
+async function clearPages(messageId) {
+    memoryPageCache.delete(messageId);
+
+    if (db) {
+        try {
+            await db.collection('pagecache').deleteOne({ messageId });
+        } catch (err) {
+            console.error('[PageCache] MongoDB clearPages error:', err.message);
+        }
+    }
 }
 
 /**
@@ -83,9 +193,10 @@ function clearPages(messageId) {
  */
 function getStats() {
     return {
-        pageCache: pageCache.size,
-        queryCache: queryCache.size,
-        entries: Array.from(pageCache.entries()).map(([id, data]) => ({
+        pageCache: memoryPageCache.size,
+        queryCache: memoryQueryCache.size,
+        mongoConnected: !!db,
+        entries: Array.from(memoryPageCache.entries()).map(([id, data]) => ({
             messageId: id,
             userId: data.userId,
             totalPages: data.totalPages,
@@ -95,6 +206,7 @@ function getStats() {
 }
 
 module.exports = {
+    connectMongo,
     setPages,
     setQuery,
     getQuery,

@@ -37,4 +37,7 @@ module.exports = {
     // App settings
     NODE_ENV: process.env.NODE_ENV || 'development',
     DEBUG: process.env.DEBUG === 'true',
+
+    // MongoDB
+    MONGO_URI: process.env.MONGO_URI || null,
 };

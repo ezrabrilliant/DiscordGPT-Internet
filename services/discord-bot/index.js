@@ -14,6 +14,7 @@ const { env } = require('./src/config');
 const { logger } = require('./src/middleware');
 const handleMessage = require('./src/handlers/handleMessage');
 const { handleInteraction } = require('./src/handlers/handleInteraction');
+const pageCache = require('./src/handlers/pageCache');
 const wintercodeClient = require('./src/services/wintercodeClient');
 const { slashCommands, deploySlashCommands } = require('./src/slashCommands');
 const { handleReactionAdd, handleReactionRemove } = require('./src/handlers/handleReaction');
@@ -90,6 +91,14 @@ function rotatePresence() {
 bot.on('ready', async () => {
     logger.info(`Bot logged in as ${bot.user.tag}`);
     logger.info(`Serving ${bot.guilds.cache.size} guilds`);
+
+    // Connect MongoDB for page cache
+    try {
+        await pageCache.connectMongo();
+        logger.info('PageCache MongoDB connected');
+    } catch (error) {
+        logger.error('PageCache MongoDB failed, using in-memory fallback', { error: error.message });
+    }
 
     // Deploy slash commands (do this once, or on update)
     try {
