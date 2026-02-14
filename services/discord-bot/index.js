@@ -6,6 +6,7 @@
  * ├── src/middleware/  - Security, logging
  * ├── src/commands/    - Command modules
  * ├── src/handlers/    - Event handlers
+ * ├── src/services/    - AI clients, memory, modchecker
  * └── src/utils/       - Utility functions
  */
 
@@ -16,6 +17,7 @@ const handleMessage = require('./src/handlers/handleMessage');
 const { handleInteraction } = require('./src/handlers/handleInteraction');
 const pageCache = require('./src/handlers/pageCache');
 const wintercodeClient = require('./src/services/wintercodeClient');
+const modCheckerService = require('./src/services/modCheckerService');
 const { slashCommands, deploySlashCommands } = require('./src/slashCommands');
 const { handleReactionAdd, handleReactionRemove } = require('./src/handlers/handleReaction');
 const reminderWorker = require('./src/workers/reminderWorker');
@@ -32,17 +34,18 @@ const bot = new Client({
         IntentsBitField.Flags.Guilds,
         IntentsBitField.Flags.GuildMessages,
         IntentsBitField.Flags.MessageContent,
-        IntentsBitField.Flags.DirectMessages,           // ✅ DM Intent
-        IntentsBitField.Flags.DirectMessageTyping,      // ✅ DM Typing
-        IntentsBitField.Flags.DirectMessageReactions,   // ✅ DM Reactions
+        IntentsBitField.Flags.DirectMessages,
+        IntentsBitField.Flags.DirectMessageTyping,
+        IntentsBitField.Flags.DirectMessageReactions,
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.DirectMessages,               // ✅ DM Intent (v14 style)
+        GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.GuildMembers, // Needed for ModChecker role stats (guild.members.fetch)
     ],
     partials: [
-        Partials.Channel,   // ✅ WAJIB untuk DM di Discord.js v14!
-        Partials.Message,   // ✅ Untuk message caching
+        Partials.Channel,
+        Partials.Message,
     ]
 });
 
@@ -50,11 +53,6 @@ const bot = new Client({
 // BOT ACTIVITIES & CUSTOM STATUS
 // ============================================
 
-// Activities (Playing xxx)
-const activities = [
-];
-
-// Custom statuses (rotating)
 const customStatuses = [
     '🆕 You can DM me now!',
     '🤖 I remember everything...',
@@ -65,22 +63,16 @@ const customStatuses = [
     '🎯 Try: zra apa kabar?',
 ];
 
-let activityIndex = 0;
 let statusIndex = 0;
 
 function rotatePresence() {
-    // Only set custom status (activities array is empty)
     bot.user.setPresence({
         activities: null,
         status: 'online',
     });
-
-    // Set custom status
     bot.user.setActivity(customStatuses[statusIndex], {
         type: ActivityType.Custom,
     });
-
-    // Rotate status
     statusIndex = (statusIndex + 1) % customStatuses.length;
 }
 
@@ -92,7 +84,7 @@ bot.on('ready', async () => {
     logger.info(`Bot logged in as ${bot.user.tag}`);
     logger.info(`Serving ${bot.guilds.cache.size} guilds`);
 
-    // Connect MongoDB for page cache
+    // Connect MongoDB for EzraBot page cache
     try {
         await pageCache.connectMongo();
         logger.info('PageCache MongoDB connected');
@@ -100,7 +92,16 @@ bot.on('ready', async () => {
         logger.error('PageCache MongoDB failed, using in-memory fallback', { error: error.message });
     }
 
-    // Deploy slash commands (do this once, or on update)
+    // Initialize ModChecker service (connects to modchecker database)
+    try {
+        await modCheckerService.init(bot, env.MONGO_URI);
+        modCheckerService.startLoops();
+        logger.info('ModChecker service started');
+    } catch (error) {
+        logger.error('ModChecker service failed to start', { error: error.message });
+    }
+
+    // Deploy EzraBot slash commands
     try {
         await deploySlashCommands(bot.user.id);
         logger.info('Slash commands deployed globally');
@@ -121,9 +122,18 @@ bot.on('ready', async () => {
     setInterval(rotatePresence, 30000);
 });
 
-// Handle slash commands & button interactions
+// Handle all interactions (slash commands, buttons, select menus)
 bot.on('interactionCreate', async (interaction) => {
-    // Handle button interactions
+    // Try ModChecker first (handles mc_ prefixed buttons, select menus, and its slash commands)
+    try {
+        const handled = await modCheckerService.handleModCheckerInteraction(interaction);
+        if (handled) return;
+    } catch (error) {
+        logger.error('ModChecker interaction error', { error: error.message });
+        return;
+    }
+
+    // Handle EzraBot button interactions (ezb_ prefixed)
     if (interaction.isButton()) {
         try {
             await handleInteraction(interaction);
@@ -136,13 +146,18 @@ bot.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // Handle slash commands
+    // Handle EzraBot select menus
+    if (interaction.isStringSelectMenu()) {
+        return; // no EzraBot select menus currently
+    }
+
+    // Handle EzraBot slash commands
     if (!interaction.isChatInputCommand()) return;
 
     const command = slashCommands.get(interaction.commandName);
 
     if (!command) {
-        logger.warn(`Unknown slash command: ${interaction.commandName}`);
+        // Not an EzraBot command either — could be stale/unknown
         return;
     }
 
@@ -182,20 +197,26 @@ bot.on('warn', (warning) => {
 // GRACEFUL SHUTDOWN
 // ============================================
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
     logger.info('Received SIGINT, shutting down gracefully...');
     wintercodeClient.stopHealthChecks();
     reminderWorker.stopReminderWorker();
+    await modCheckerService.shutdown();
     bot.destroy();
     process.exit(0);
 });
 
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
     logger.info('Received SIGTERM, shutting down gracefully...');
     wintercodeClient.stopHealthChecks();
     reminderWorker.stopReminderWorker();
+    await modCheckerService.shutdown();
     bot.destroy();
     process.exit(0);
+});
+
+process.on('unhandledRejection', (err) => {
+    logger.error('Unhandled rejection', { error: err?.message || err });
 });
 
 // ============================================

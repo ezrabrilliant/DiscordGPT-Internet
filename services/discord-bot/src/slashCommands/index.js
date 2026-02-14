@@ -41,14 +41,26 @@ function loadSlashCommands() {
 
 /**
  * Register slash commands with Discord API
- * Call this once when deploying or updating commands
+ * Merges EzraBot commands with ModChecker commands
  */
 async function deploySlashCommands(clientId, guildId = null) {
     const commands = [];
 
+    // Add EzraBot commands
     slashCommands.forEach(command => {
         commands.push(command.data.toJSON());
     });
+
+    // Add ModChecker commands
+    try {
+        const modCheckerService = require('../services/modCheckerService');
+        const mcCommands = await modCheckerService.getSlashCommands();
+        for (const cmd of mcCommands) {
+            commands.push(cmd.toJSON());
+        }
+    } catch (err) {
+        logger.warn('ModChecker commands not available for deploy', { error: err.message });
+    }
 
     const rest = new REST({ version: '10' }).setToken(env.TOKEN);
 

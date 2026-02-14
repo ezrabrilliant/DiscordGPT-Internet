@@ -9,6 +9,8 @@
   },
   "dependencies": {
     "@google/genai": "^1.38.0",
+    "@napi-rs/canvas": "^0.1.92",
+    "axios": "^1.13.5",
     "discord.js": "^14.15.2",
     "dotenv": "^16.4.5",
     "mongodb": "^7.1.0"
