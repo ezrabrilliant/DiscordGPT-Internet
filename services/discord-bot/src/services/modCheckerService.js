@@ -25,7 +25,7 @@ var DISPLAY_INTERVAL = 15000;
 var STALE_THRESHOLD = 15 * 60;
 var ROLE_PREFIX = 'Mod: ';
 var NL = '\n';
-var ROLES_PER_PAGE = 10;
+var ROLES_PER_PAGE = 5;
 
 // Emoji constants
 var EMOJI_ONLINE = '<a:online:1290378869957853268>';
@@ -43,6 +43,10 @@ var lastApiSource = null;
 var checkInterval = null;
 var displayInterval = null;
 var roleStatsInterval = null;
+var membersFetchedAt = {};     // guildId -> timestamp of last fetch
+var MEMBERS_FETCH_COOLDOWN = 5 * 60 * 1000; // only fetch members every 5 minutes
+var roleStatsCache = {};       // guildId -> { data, timestamp }
+var ROLESTATS_CACHE_TTL = 30 * 1000; // cache roleStats data for 30 seconds
 
 // ============================================================
 // INIT
@@ -424,7 +428,18 @@ async function updateAllDisplayEmbeds() {
 
 async function collectRoleStatsData(guild) {
     var modRoles = await db.collection('modroles').find({ guildId: guild.id }).toArray();
-    await guild.members.fetch();
+
+    // Only fetch members if cooldown expired (avoid opcode 8 rate limit)
+    var now = Date.now();
+    if (!membersFetchedAt[guild.id] || (now - membersFetchedAt[guild.id]) > MEMBERS_FETCH_COOLDOWN) {
+        try {
+            await guild.members.fetch();
+            membersFetchedAt[guild.id] = now;
+        } catch (err) {
+            console.error('[ModChecker] members.fetch rate limited, using cache:', err.message);
+        }
+    }
+
     var uniqueUsers = new Set();
     var roleData = [];
 

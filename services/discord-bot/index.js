@@ -10,7 +10,7 @@
  * └── src/utils/       - Utility functions
  */
 
-const { Client, IntentsBitField, GatewayIntentBits, ActivityType, Partials } = require('discord.js');
+const { Client, IntentsBitField, GatewayIntentBits, ActivityType, Partials, Events } = require('discord.js');
 const { env } = require('./src/config');
 const { logger } = require('./src/middleware');
 const handleMessage = require('./src/handlers/handleMessage');
@@ -80,7 +80,7 @@ function rotatePresence() {
 // EVENT HANDLERS
 // ============================================
 
-bot.on('ready', async () => {
+bot.once(Events.ClientReady, async () => {
     logger.info(`Bot logged in as ${bot.user.tag}`);
     logger.info(`Serving ${bot.guilds.cache.size} guilds`);
 
