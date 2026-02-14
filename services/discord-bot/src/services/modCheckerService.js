@@ -934,7 +934,16 @@ async function handleRoleStatsButton(interaction) {
             currentPage = currentPage + 1;
         }
 
-        var data = await collectRoleStatsData(guild);
+        // Use cached data for fast button response
+        var data;
+        var cached = roleStatsCache[guildId];
+        if (cached && (Date.now() - cached.timestamp) < ROLESTATS_CACHE_TTL) {
+            data = cached.data;
+        } else {
+            data = await collectRoleStatsData(guild);
+            roleStatsCache[guildId] = { data: data, timestamp: Date.now() };
+        }
+
         if (currentPage >= data.totalPages) currentPage = data.totalPages - 1;
         if (currentPage < 0) currentPage = 0;
         await setRoleStatsPage(guildId, currentPage);

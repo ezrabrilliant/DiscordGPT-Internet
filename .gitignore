@@ -94,3 +94,5 @@ services/discord-bot/api.md
 services/discord-bot/cleanup-old-data.js
 services/discord-bot/restore-data.js
 services/discord-bot/discord-bot.rar
+services/discord-bot/bot-servers.md
+services/discord-bot/check-servers.js
